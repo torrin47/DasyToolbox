@@ -1,0 +1,75 @@
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-16">
+<link rel="stylesheet" type="text/css" href="file://C:/Program Files/ArcGIS/help/gp/81Help.css"><script type="text/javascript" language="JavaScript" src="C:/Program Files/ArcGIS/help/gp/81Help.js"></script><script type="text/javascript" language="JavaScript" src="ms-its:Geoprocessing.chm::/81Help.js"></script><script language="JavaScript1.2"></script><title></title>
+</head>
+<body>
+<table style="margin-top:-1em; margin-bottom:0; padding:0; margin-left:-1em">
+<tr>
+<td style="background:white"><img width="875" height="70" alt="ArcToolbox banner" src="file://C:/Program Files/ArcGIS/help/gp/AHBanner_Arctoolbox.gif"></td>
+</tr>
+</table>
+<h1>Raster 5 - Create Final Dasymetric Raster</h1>
+<p></p>
+<p>This tool creates a floating-point population density raster by joining a table with dasymetrically calculated population density with the combined population and ancillary raster created in step 2.</p><br><p>
+<h2> Command line syntax</h2>
+</p>
+<div>CreateFinalRaster &lt;Dasymetric_Raster&gt; &lt;Dasymetric_Working_Table&gt; &lt;Density_Raster&gt; <br><br><b>Parameters</b><br><table width="100%" border="0" cellpadding="5">
+<tbody>
+<tr>
+<th width="40%"><b>Expression</b></th>
+<th width="60%"><b>Explanation</b></th>
+</tr>
+<tr>
+<td class="info">&lt;Dasymetric_Raster&gt;</td>
+<td class="info" align="left">
+<p>The combined population and ancillary raster created as the output from step 2.</p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Dasymetric_Working_Table&gt;</td>
+<td class="info" align="left">
+<p>The dasymetric working table created in step 2 and populated in step 4.  This script will use the final column from that table for the output density values.  </p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Density_Raster&gt;</td>
+<td class="info" align="left">
+<p>Please enter the desired output raster with the full path.  When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for an ESRI GRID file format.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>
+<h2> Scripting syntax</h2>
+</p>
+<div>CreateFinalRaster (Dasymetric_Raster, Dasymetric_Working_Table, Density_Raster) <br><br><b>Parameters</b><br><table width="100%" border="0" cellpadding="5">
+<tbody>
+<tr>
+<th width="40%"><b>Expression</b></th>
+<th width="60%"><b>Explanation</b></th>
+</tr>
+<tr>
+<td class="info">Dasymetric Raster (Required) </td>
+<td class="info" align="left">
+<p>The combined population and ancillary raster created as the output from step 2.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Dasymetric Working Table (Required) </td>
+<td class="info" align="left">
+<p>The dasymetric working table created in step 2 and populated in step 4.  This script will use the final column from that table for the output density values.  </p>
+</td>
+</tr>
+<tr>
+<td class="info">Density Raster (Required) </td>
+<td class="info" align="left">
+<p>Please enter the desired output raster with the full path.  When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for an ESRI GRID file format.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</body>
+</html>

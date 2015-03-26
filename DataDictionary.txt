@@ -1,0 +1,290 @@
+Below are XML representations defining all of the output attributes.  
+These may be used to create FGDC metadata for your output data.
+
+
+Population Working Table
+<attr>
+  <attrlabl>OID</attrlabl>
+  <attrdef>Internal feature number.</attrdef>
+  <attrdefs>ESRI</attrdefs>
+  <attrdomv>
+    <udom>Sequential unique whole numbers that are automatically
+    generated.</udom>
+  </attrdomv>
+</attr>
+<attr>
+  <attrlabl>VALUE</attrlabl>
+  <attrdef>Integer raster value field corresponding to the Object
+  ID of the input population feature class.</attrdef>
+</attr>
+<attr>
+  <attrlabl>COUNT</attrlabl>
+  <attrdef>Automatically calculated field containing the total
+  number of cells with this value.</attrdef>
+</attr>
+<attr>
+  <attrlabl>****Population Field Name****</attrlabl>
+  <attrdef>This attribute field name should correspond to the field
+  specified by the user as containing the population for this
+  source unit and contain that population count value.</attrdef>
+</attr>
+<attr>
+  <attrlabl>REP_CAT</attrlabl>
+  <attrdef>This attribute, Representative Category, is populated by
+  the dasymetric mapping routine. If this population unit was
+  selected as being representative of an ancillary class, that
+  ancillary class value will be placed here.</attrdef>
+</attr>
+<attr>
+  <attrlabl>CELL_DENS</attrlabl>
+  <attrdef>This attribute, Cell Density, is populated by the
+  dasymetric mapping routine. It is simply the population value
+  divided by the cell count.</attrdef>
+</attr>
+<attr>
+  <attrlabl>POP_AREA</attrlabl>
+  <attrdef>This attribute, Populated Area, is populated by the
+  dasymetric mapping routine. If portions of this population unit
+  are covered by ancillary classes that have been preset to zero,
+  then this will be the count of the remaining pixels (those not
+  preset to zero).</attrdef>
+</attr>
+<attr>
+  <attrlabl>POP_DENS</attrlabl>
+  <attrdef>This attribute, Populated Density, is populated by the
+  dasymetric mapping routine. It is simply the population value
+  divided by the populated area.</attrdef>
+</attr>
+
+
+Dasymetric Working Table
+<attr>
+  <attrlabl>OID</attrlabl>
+  <attrdef>Internal feature number.</attrdef>
+  <attrdefs>ESRI</attrdefs>
+  <attrdomv>
+    <udom>Sequential unique whole numbers that are automatically
+    generated.</udom>
+  </attrdomv>
+</attr>
+<attr>
+  <attrlabl>VALUE</attrlabl>
+  <attrdef>Integer raster value corresponding to a unique
+  combination of population source unit and ancillary
+  class.</attrdef>
+</attr>
+<attr>
+  <attrlabl>COUNT</attrlabl>
+  <attrdef>Automatically calculated field containing the total
+  number of cells with this value.</attrdef>
+</attr>
+<attr>
+  <attrlabl>****Population Raster Value Field****</attrlabl>
+  <attrdef>The name of this field is automatically generated, based
+  on the population raster name, as part of the population and
+  ancillary raster combine function. This field contains all of the
+  population raster values.</attrdef>
+</attr>
+<attr>
+  <attrlabl>****Ancillary Raster Value Field****</attrlabl>
+  <attrdef>The name of this field is automatically generated, based
+  on the ancillary raster name, as part of the population and
+  ancillary raster combine function. This field contains all of the
+  ancillary raster values.</attrdef>
+</attr>
+<attr>
+  <attrlabl>POP_COUNT</attrlabl>
+  <attrdef>This attribute, Population Count, is populated by the
+  dasymetric mapping routine. It contains the population count
+  values from the population working table.</attrdef>
+</attr>
+<attr>
+  <attrlabl>POP_AREA</attrlabl>
+  <attrdef>This attribute, Populated Area, is populated by the
+  dasymetric mapping routine. If portions of this population unit
+  are covered by ancillary classes that have been preset to zero,
+  then this will be the count of the remaining pixels (those not
+  preset to zero).</attrdef>
+</attr>
+<attr>
+  <attrlabl>POP_EST</attrlabl>
+  <attrdef>This attribute, Populated Area, is populated by the
+  dasymetric mapping routine. It contains the estimated population
+  count calculated for preset or sampled classes by multiplying the
+  class density by the cell count for this output unit or for
+  unsampled classes by using intelligent areal weighting. This
+  estimate is not pycnophilactic and is used only as an
+  intermediate step.</attrdef>
+</attr>
+<attr>
+  <attrlabl>REM_AREA</attrlabl>
+  <attrdef>This attribute, Remaining Area, is populated by the
+  dasymetric mapping routine and is used in intelligent areal
+  weighting. It contains the cell count values for those output
+  units that were unsampled and not preset.</attrdef>
+</attr>
+<attr>
+  <attrlabl>TOTALFRACT</attrlabl>
+  <attrdef>This attribute, Total Fraction, is populated by the
+  dasymetric mapping routine. It equals the class density (preset,
+  sampled, or intelligent areal weighting) times the cell count for
+  this output unit divided by the sum of all the class densities
+  times all the cell counts for this population source unit. This
+  is calculated to preserve pycnophylactic integrity within each
+  population unit.</attrdef>
+</attr>
+<attr>
+  <attrlabl>NEW_POP</attrlabl>
+  <attrdef>This attribute, New Population, is populated by the
+  dasymetric mapping routine. It contains the population count for
+  this output area estimated by the intelligent dasymetric mapping
+  routine. It is equal to the population count of the source
+  population unit times the total fraction for this output
+  unit.</attrdef>
+</attr>
+<attr>
+  <attrlabl>NEWDENSITY</attrlabl>
+  <attrdef>This attribute, New Density, is populated by the
+  dasymetric mapping routine. It contains the population density
+  for this output area estimated by the intelligent dasymetric
+  mapping routine. It is equal to the new population divided by the
+  cell count for this output unit.</attrdef>
+</attr>
+
+
+Sampling Summary Table
+<attr>
+  <attrlabl>OID</attrlabl>
+  <attrdef>Internal feature number.</attrdef>
+  <attrdefs>ESRI</attrdefs>
+  <attrdomv>
+    <udom>Sequential unique whole numbers that are automatically
+    generated.</udom>
+  </attrdomv>
+</attr>
+<attr>
+  <attrlabl>REP_CAT</attrlabl>
+  <attrdef>While this field name corresponds to the representative category field in the dasymetric working table, the field should contain all ancillary class values found in the study area, whether sampled, preset, or intelligently areally weighted.</attrdef>
+</attr>
+<attr>
+  <attrlabl>FREQUENCY</attrlabl>
+  <attrdef>The number of output units that correspond to this
+  ancillary class.</attrdef>
+</attr>
+<attr>
+  <attrlabl>SUM_***Population Field Name ***</attrlabl>
+  <attrdef>The combined population of all the population source units selected as representative of this ancillary class if the class was sampled.</attrdef>
+</attr>
+<attr>
+  <attrlabl>SUM_COUNT</attrlabl>
+  <attrdef>The combined area (pixel count) of all the population source units selected as representative of this ancillary class if the class was sampled.</attrdef>
+</attr>
+<attr>
+  <attrlabl>MEAN_CELL_</attrlabl>
+  <attrdef>The mean cell density value for all population source units selected as representative of this ancillary class if the class was sampled. Note that this mean cell density, equal to the sum of the cell density values divided by the number of representative units, is different from the CLASSDENS value used in further calculations.  It is calculated here only for comparison purposes and to aid in determining sample homogeneity.</attrdef>
+</attr>
+<attr>
+  <attrlabl>MIN_CELL_D</attrlabl>
+  <attrdef>The minimum cell density value for all population source units selected as representative of this ancillary class if the class was sampled.</attrdef>
+</attr>
+<attr>
+  <attrlabl>MAX_CELL_D</attrlabl>
+  <attrdef>The maximum cell density value for all population source units selected as representative of this ancillary class if the class was sampled.</attrdef>
+</attr>
+<attr>
+  <attrlabl>STD_CELL_D</attrlabl>
+  <attrdef>The standard deviation of all cell density values for all population source units selected as representative of this ancillary class if the class was sampled.</attrdef>
+</attr>
+<attr>
+  <attrlabl>SUM_POP_AR</attrlabl>
+  <attrdef>The total combined area of all output units with this ancillary class that contain some population.</attrdef>
+</attr>
+<attr>
+  <attrlabl>MEAN_POP_D</attrlabl>
+  <attrdef>The mean population density value of all output units belonging to this ancillary class that contain some population.  Note that this mean cell density, equal to the sum of the cell density values divided by the number of populated representative units, is different from the CLASSDENS value used in further calculations.  It is calculated here only for comparison purposes and to aid in determining sample homogeneity.</attrdef>
+</attr>
+<attr>
+  <attrlabl>MIN_POP_DE</attrlabl>
+  <attrdef>The minimum cell density value for all populated source units selected as representative of this ancillary class if the class was sampled.</attrdef>
+</attr>
+<attr>
+  <attrlabl>MAX_POP_DE</attrlabl>
+  <attrdef>The maximum cell density value for all populated source units selected as representative of this ancillary class if the class was sampled.</attrdef>
+</attr>
+<attr>
+  <attrlabl>STD_POP_DE</attrlabl>
+  <attrdef>The standard deviation of all cell density values for all populated source units selected as representative of this ancillary class if the class was sampled.</attrdef>
+</attr>
+<attr>
+  <attrlabl>SAMPLDENS</attrlabl>
+  <attrdef>The characteristic density for this ancillary class, calculated by dividing the total population of all representative source zones by the total populated area of those source zones.</attrdef>
+</attr>
+<attr>
+  <attrlabl>METHOD</attrlabl>
+  <attrdef>The method used to obtain the class density value for this ancillary class.  Possible values are Preset, Sampled, and IAW (Intelligent Areal Weighting.</attrdef>
+</attr>
+<attr>
+  <attrlabl>CLASSDENS</attrlabl>
+  <attrdef>The class density value used in subsequent calculations.  This will differ from SAMPLDENS only for IAW classes, or for classes that were Preset to a non-zero value - in which case it may be helpful to compare the Preset value with the calculated Sample Density value.</attrdef>
+</attr>
+
+
+Final Summary Table
+<attr>
+  <attrlabl>OID</attrlabl>
+  <attrdef>Internal feature number.</attrdef>
+  <attrdefs>ESRI</attrdefs>
+  <attrdomv>
+    <udom>Sequential unique whole numbers that are automatically
+    generated.</udom>
+  </attrdomv>
+</attr>
+<attr>
+  <attrlabl>****Ancillary Raster Value Field****</attrlabl>
+  <attrdef>The name of this field is automatically generated, based
+  on the ancillary raster name, as part of the population and
+  ancillary raster combine function. This field contains all of the
+  ancillary raster values.</attrdef>
+</attr>
+<attr>
+  <attrlabl>FREQUENCY</attrlabl>
+  <attrdef>The number of output units that correspond to this
+  ancillary class.</attrdef>
+</attr>
+<attr>
+  <attrlabl>SUM_NEW_PO</attrlabl>
+  <attrdef>The sum of the NEW_POP field, or the total
+  dasymetrically calculated population for this ancillary
+  class.</attrdef>
+</attr>
+<attr>
+  <attrlabl>MEAN_NEWDE</attrlabl>
+  <attrdef>The mean of the NEWDENSITY field, or the mean density
+  for all output units belonging to this ancillary class.</attrdef>
+</attr>
+<attr>
+  <attrlabl>MIN_NEWDEN</attrlabl>
+  <attrdef>The minimum of the NEWDENSITY field, or the minimum
+  density for all output units belonging to this ancillary
+  class.</attrdef>
+</attr>
+<attr>
+  <attrlabl>MAX_NEWDEN</attrlabl>
+  <attrdef>The maximum of the NEWDENSITY field, or the maximum
+  density for all output units belonging to this ancillary
+  class.</attrdef>
+</attr>
+<attr>
+  <attrlabl>STD_NEWDEN</attrlabl>
+  <attrdef>The standard deviation of the NEWDENSITY field, or the
+  standard deviation of all density values for all output units
+  belonging to this ancillary class. If this standard deviation is
+  large relative to the mean, it may be a warning that this
+  ancillary class is not sufficiently homogeneous with respect to
+  population distribution to be useful in dasymetric population
+  mapping.</attrdef>
+</attr>
+
+
+
+

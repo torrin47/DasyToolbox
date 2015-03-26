@@ -1,0 +1,214 @@
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-16">
+<link rel="stylesheet" type="text/css" href="file://C:/Program Files/ArcGIS/help/gp/81Help.css"><script type="text/javascript" language="JavaScript" src="C:/Program Files/ArcGIS/help/gp/81Help.js"></script><script type="text/javascript" language="JavaScript" src="ms-its:Geoprocessing.chm::/81Help.js"></script><script language="JavaScript1.2"></script><title></title>
+</head>
+<body>
+<table style="margin-top:-1em; margin-bottom:0; padding:0; margin-left:-1em">
+<tr>
+<td style="background:white"><img width="875" height="70" alt="ArcToolbox banner" src="file://C:/Program Files/ArcGIS/help/gp/AHBanner_Arctoolbox.gif"></td>
+</tr>
+</table>
+<h1>Raster 4 - Dasymetric Calculations</h1>
+<p></p>
+<p>A dasymetric map seeks to display statistical surface data by exhaustively partitioning space into zones where the zone boundaries reflect the underlying statistical surface variation.  The process of dasymetric mapping is the transformation of data from a set of arbitrary source zones to a dasymetric map via the overlay of the source zones with an ancillary data set.  In practice, dasymetric mapping is often considered a particular type of areal interpolation technique where source zone data are excluded from certain classes in a categorical ancillary data set.  Dasymetric mapping is applicable to a wide variety of tasks where the user seeks to refine spatially aggregated data, for example in estimating local population characteristics in areas where only coarser, regional resolution census data are available.  This tool addresses the design, implementation, validation, and application of a new ‘intelligent’ dasymetric mapping  (IDM) technique that supports a variety of methods for characterizing the relationship between the ancillary data and underlying statistical surface.  The technique is referred to as intelligent because an analyst may establish this relationship subjectively using their own domain knowledge, extract this relationship from the data using a novel empirical sampling technique, or combine the subjective and empirically-based methods.</p><br><p>
+<h2> Usage Tips</h2>
+</p>
+<div>
+<p>Here's a brief summary of the script process:</p>
+<ul>
+<li>For each population source unit, calculate the "inhabited" or populated area by subtracting from the total area those classes which are preset to zero.</li>
+</ul>
+<ul>
+<li>For each ancillary class not preset to zero, select representative population units using the specified criteria and calculate the representative population density = sum of all representative population / sum of all representative inhabited area.</li>
+</ul>
+<ul>
+<li>For each sampled or preset class, calculate a preliminary population estimate by simply multiplying the representative population density (sampled or preset) by the area of each output unit (an output unit is a row in the table, representing a unique combination of population unit and ancillary class).  </li>
+</ul>
+<ul>
+<li>For each population unit, sum all of the preliminary population estimates of its subsidiary output units, compare to the actual population, and distribute any remaining population areally to the remaining inhabited subsidiary output units.  Calculate the representative population densities for all of the unsampled ancillary classes = sum of estimated population for all class output units/ total ancillary class area.  </li>
+</ul>
+<ul>
+<li>Recalculate a secondary population estimate by again multiplying all representative population densities (sampled, preset, or smart areal weighted) by the area of each output unit.</li>
+</ul>
+<ul>
+<li>To maintain pycnophylactic integrity for each population unit, find the sum of the secondary population estimates and calculate a distribution ratio = output unit secondary population estimate / total estimated population for the specified population unit.</li>
+</ul>
+<ul>
+<li>Calculate the final population estimate as the initial population of the source unit times the output unit’s distribution ratio.</li>
+</ul>
+<p>The script also produces two summary tables for your reference in the same output workspace as the dasymetric working table.  The first, SamplingSummaryTable,contains statistics for the source population units regarded as representative of each ancillary class.  The second, FinalSummaryTable, contains statistics for the final desnity values.  A data dictionary text file that describes all of the attributes of all of the ouput tables should be found in the toolbox/script directory.</p><br></div>
+<p>
+<h2> Command line syntax</h2>
+</p>
+<div>DasymetricCalculations &lt;Population_Working_Table&gt; &lt;Population_Count_Field&gt; &lt;Population_Area_Field&gt; &lt;Dasymetric_Working_Table&gt; &lt;Population_ID_Field&gt; &lt;Ancillary_Class_Field&gt; &lt;Combined_Area_Field&gt; &lt;Minimum_Sample&gt; &lt;Minimum_Sampling_Area&gt; {Percent} {Preset_Table} &lt;Preset_Field&gt; <br><br><b>Parameters</b><br><table width="100%" border="0" cellpadding="5">
+<tbody>
+<tr>
+<th width="40%"><b>Expression</b></th>
+<th width="60%"><b>Explanation</b></th>
+</tr>
+<tr>
+<td class="info">&lt;Population_Working_Table&gt;</td>
+<td class="info" align="left">
+<p>The standalone population table created in prior steps.</p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Population_Count_Field&gt;</td>
+<td class="info" align="left">
+<p>The field in the population feature class that contains population count values.</p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Population_Area_Field&gt;</td>
+<td class="info" align="left">
+<p>If this script is being used on raster data, this field should be set to "Count."</p>
+<p>If this tool is being used with vector data, please make sure there is a field in the population feature class that contains area values that were calculated in this feature class' spatial reference.  If the feature class is in a geodatabase, there should already be such a field.  If the feature class is a shapefile, you must calculate this field yourself.  Please see the ArcGIS help for more information on calculating the area of a shape.</p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Dasymetric_Working_Table&gt;</td>
+<td class="info" align="left">
+<p>The standalone table, usually created in step two, that contains a row for each unique combination of population unit and ancillary class.  This table will be used for the bulk of the dasymetric calculations.  </p>
+<p>If you re-use the same table more than once, the script will purge the old calculated values and start fresh.  </p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Population_ID_Field&gt;</td>
+<td class="info" align="left">
+<p>The field in the output working table that uniquely identifies the source units.  This field name is usually derived from the name of the Population Raster.</p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Ancillary_Class_Field&gt;</td>
+<td class="info" align="left">
+<p>Field containing ancillary classes to be used for redistributing the population within each source unit.  The field may be of any type.</p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Combined_Area_Field&gt;</td>
+<td class="info" align="left">
+<p>The name of the field in the output working table containing the raster cell count.</p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Minimum_Sample&gt;</td>
+<td class="info" align="left">
+<p>This is the minimum threshold of representative source units required for an ancillary class to be considered sampled.  We found that if only a small number (1-3) were sampled, those units were not often truly representative of others in that ancillary class, and the Intelligent Areal Weighting (IAW) method provided better results.  Any class that is not preset or sufficiently sampled will be assigned a density using the IAW method.</p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Minimum_Sampling_Area&gt;</td>
+<td class="info" align="left">
+<p>The minimum number of raster cells that may be considered "representative" of a source area.  Increasing this number may eliminate some very small areas that might be considered anomalous outliers that could skew the class average.</p>
+</td>
+</tr>
+<tr>
+<td class="info">{Percent}</td>
+<td class="info" align="left">
+<p>This is the percent threshold value, in decimal notation, if Percent Area is specified above.  </p>
+</td>
+</tr>
+<tr>
+<td class="info">{Preset_Table}</td>
+<td class="info" align="left">
+<p>If you wish, you may use this feature to manually "preset" the popluation density values of any of your ancillary classes with a priori values.  For instance, if your ancillary dataset represents land cover, you may wish to preset the "Water" or "Glacier" classes to zero.  To do so, create a standalone table with a field of the same name and type as the Ancillary Class Field above that contains only your preset classes, and add a field that contains their respective preset classes.</p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Preset_Field&gt;</td>
+<td class="info" align="left">
+<p>The field in the preset table containing the preset population density values.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>
+<h2> Scripting syntax</h2>
+</p>
+<div>DasymetricCalculations (Population_Working_Table, Population_Count_Field, Population_Area_Field, Dasymetric_Working_Table, Population_ID_Field, Ancillary_Class_Field, Combined_Area_Field, Minimum_Sample, Minimum_Sampling_Area, Percent, Preset_Table, Preset_Field) <br><br><b>Parameters</b><br><table width="100%" border="0" cellpadding="5">
+<tbody>
+<tr>
+<th width="40%"><b>Expression</b></th>
+<th width="60%"><b>Explanation</b></th>
+</tr>
+<tr>
+<td class="info">Population Working Table (Required) </td>
+<td class="info" align="left">
+<p>The standalone population table created in prior steps.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Population Count Field (Required) </td>
+<td class="info" align="left">
+<p>The field in the population feature class that contains population count values.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Population Area Field (Required) </td>
+<td class="info" align="left">
+<p>If this script is being used on raster data, this field should be set to "Count."</p>
+<p>If this tool is being used with vector data, please make sure there is a field in the population feature class that contains area values that were calculated in this feature class' spatial reference.  If the feature class is in a geodatabase, there should already be such a field.  If the feature class is a shapefile, you must calculate this field yourself.  Please see the ArcGIS help for more information on calculating the area of a shape.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Dasymetric Working Table (Required) </td>
+<td class="info" align="left">
+<p>The standalone table, usually created in step two, that contains a row for each unique combination of population unit and ancillary class.  This table will be used for the bulk of the dasymetric calculations.  </p>
+<p>If you re-use the same table more than once, the script will purge the old calculated values and start fresh.  </p>
+</td>
+</tr>
+<tr>
+<td class="info">Population ID Field (Required) </td>
+<td class="info" align="left">
+<p>The field in the output working table that uniquely identifies the source units.  This field name is usually derived from the name of the Population Raster.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Ancillary Class Field (Required) </td>
+<td class="info" align="left">
+<p>Field containing ancillary classes to be used for redistributing the population within each source unit.  The field may be of any type.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Combined Area Field (Required) </td>
+<td class="info" align="left">
+<p>The name of the field in the output working table containing the raster cell count.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Minimum Sample (Required) </td>
+<td class="info" align="left">
+<p>This is the minimum threshold of representative source units required for an ancillary class to be considered sampled.  We found that if only a small number (1-3) were sampled, those units were not often truly representative of others in that ancillary class, and the Intelligent Areal Weighting (IAW) method provided better results.  Any class that is not preset or sufficiently sampled will be assigned a density using the IAW method.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Minimum Sampling Area (Required) </td>
+<td class="info" align="left">
+<p>The minimum number of raster cells that may be considered "representative" of a source area.  Increasing this number may eliminate some very small areas that might be considered anomalous outliers that could skew the class average.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Percent (Optional) </td>
+<td class="info" align="left">
+<p>This is the percent threshold value, in decimal notation, if Percent Area is specified above.  </p>
+</td>
+</tr>
+<tr>
+<td class="info">Preset Table (Optional) </td>
+<td class="info" align="left">
+<p>If you wish, you may use this feature to manually "preset" the popluation density values of any of your ancillary classes with a priori values.  For instance, if your ancillary dataset represents land cover, you may wish to preset the "Water" or "Glacier" classes to zero.  To do so, create a standalone table with a field of the same name and type as the Ancillary Class Field above that contains only your preset classes, and add a field that contains their respective preset classes.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Preset Field (Required) </td>
+<td class="info" align="left">
+<p>The field in the preset table containing the preset population density values.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</body>
+</html>

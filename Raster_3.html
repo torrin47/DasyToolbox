@@ -1,0 +1,77 @@
+<html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-16">
+<link rel="stylesheet" type="text/css" href="file://C:/Program Files/ArcGIS/help/gp/81Help.css"><script type="text/javascript" language="JavaScript" src="C:/Program Files/ArcGIS/help/gp/81Help.js"></script><script type="text/javascript" language="JavaScript" src="ms-its:Geoprocessing.chm::/81Help.js"></script><script language="JavaScript1.2"></script><title></title>
+</head>
+<body>
+<table style="margin-top:-1em; margin-bottom:0; padding:0; margin-left:-1em">
+<tr>
+<td style="background:white"><img width="875" height="70" alt="ArcToolbox banner" src="file://C:/Program Files/ArcGIS/help/gp/AHBanner_Arctoolbox.gif"></td>
+</tr>
+</table>
+<h1>Raster 3 - Create Ancillary Class Preset Table</h1>
+<p></p>
+<p>This tool assists with the creation of a standalone table that can contain preset density values for all the unique classes in the ancillary dataset.  For instance, if your ancillary dataset represents land cover, you may wish to preset the "Water" or "Glacier" classes to zero.  After the table is created, it will need to be manually populated with preset density values, and classes that should not be preset should be removed from the table.</p><br><p>
+<h2> Usage Tips</h2>
+</p>
+<div>
+<p>The output table will contain ancillary class values, the count of the number of pixels in that class, and a new column with floating-point type called PRESETDENS, which represents estimated people per pixel.  It is most common for this function to be used to specify zero population for certain classes (it's often a safe assumption that water or snowfield areas have zero population).  Setting such classes to zero helps refine density estimates in the intelligent dasymetric mapping.  You may finish preparing this table in at least two ways:</p>
+<ul>
+<li>The first way to populate this table is to add it to ArcMap, start an edit session with the table as the target, and type density values into the PRESETDENS column, then save and stop the edit session.</li>
+</ul>
+<ul>
+<li>If you choose a standalone .dbf file as the output for this tool, you may also use Microsoft Excel as an editor for the table.  If you choose this option, please be sure to only edit the one column, and save the document as dbf again. </li>
+</ul>
+<p>You should remove rows from the table corresponding to those classes for which you do not wish to provide estimates (you would prefer their densities to be calculated via intelligent dasymetric mapping).</p><br></div>
+<p>
+<h2> Command line syntax</h2>
+</p>
+<div>CreateAncillaryPresetTable &lt;Ancillary_Raster&gt; &lt;Ancillary_Preset_Table&gt; <br><br><b>Parameters</b><br><table width="100%" border="0" cellpadding="5">
+<tbody>
+<tr>
+<th width="40%"><b>Expression</b></th>
+<th width="60%"><b>Explanation</b></th>
+</tr>
+<tr>
+<td class="info">&lt;Ancillary_Raster&gt;</td>
+<td class="info" align="left">
+<p>The ancillary raster dataset.</p>
+</td>
+</tr>
+<tr>
+<td class="info">&lt;Ancillary_Preset_Table&gt;</td>
+<td class="info" align="left">
+<p>The output standalone table with full path that will be created.</p>
+</td>
+</tr>
+</tbody>
+</table><b>Command Line Example</b><br><br><pre>
+</pre>
+</div>
+<p>
+<h2> Scripting syntax</h2>
+</p>
+<div>CreateAncillaryPresetTable (Ancillary_Raster, Ancillary_Preset_Table) <br><br><b>Parameters</b><br><table width="100%" border="0" cellpadding="5">
+<tbody>
+<tr>
+<th width="40%"><b>Expression</b></th>
+<th width="60%"><b>Explanation</b></th>
+</tr>
+<tr>
+<td class="info">Ancillary Raster (Required) </td>
+<td class="info" align="left">
+<p>The ancillary raster dataset.</p>
+</td>
+</tr>
+<tr>
+<td class="info">Ancillary Preset Table (Required) </td>
+<td class="info" align="left">
+<p>The output standalone table with full path that will be created.</p>
+</td>
+</tr>
+</tbody>
+</table><b>Script Example</b><br><br><pre>
+</pre>
+</div>
+</body>
+</html>
