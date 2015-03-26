@@ -12,7 +12,7 @@ import sys, string, os, arcpy, traceback
 
 # Helper function for displaying messages
 def AddPrintMessage(msg, severity):
-    print msg
+    print(msg)
     if severity == 0: arcpy.AddMessage(msg)
     elif severity == 1: arcpy.AddWarning(msg)
     elif severity == 2: arcpy.AddError(msg)
@@ -27,8 +27,8 @@ def GetPath(datasetName):
     datasetPath = os.path.dirname(datasetName)
     desc = arcpy.Describe(datasetPath)
     if (desc.datatype == 'RasterDataset'):
-      # Get parent folder, which is probably what the user intended.
-      datasetPath = os.path.dirname(datasetPath)
+        # Get parent folder, which is probably what the user intended.
+        datasetPath = os.path.dirname(datasetPath)
     return datasetPath
 
 try:
@@ -67,9 +67,9 @@ try:
     AddPrintMessage("Converting polygons to raster...",0)
     arcpy.PolygonToRaster_conversion(popFeatures, valueField, popRaster, cellAssignmentType, "NONE", outCellSize)
 
-	##Build attribute table for single band raster dataset (not always built automatically)
+    ##Build attribute table for single band raster dataset (not always built automatically)
     arcpy.BuildRasterAttributeTable_management(popRaster, "Overwrite")
-	
+
     # Return environment variables to previous values
     arcpy.env.outputCoordinateSystem = tempCoordSys
     arcpy.env.snapRaster = tempSnapRaster
@@ -153,7 +153,7 @@ try:
 
 # Geoprocessing Errors will be caught here
 except Exception as e:
-    print e.message
+    print(e.message)
     arcpy.AddError(e.message)
 
 # other errors caught here
@@ -162,8 +162,8 @@ except:
     for msg in range(0, arcpy.GetMessageCount()):
         if arcpy.GetSeverity(msg) == 2:
             arcpy.AddReturnMessage(msg)
-			
-	# Return Python specific errors
+
+    # Return Python specific errors
     tb = sys.exc_info()[2]
     tbinfo = traceback.format_tb(tb)[0]
     pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
