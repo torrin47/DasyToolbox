@@ -11,7 +11,7 @@ Description:   This toolbox contains a number of scripts that assist
                documentation on the individual tools for more information.
 """
 
-import arcpy, os
+import arcpy, os, sys, traceback
 
 ##Global helper functions used by all classes
 
@@ -84,6 +84,7 @@ class PopToRaster(object):
         param_2.parameterType = 'Required'
         param_2.direction = 'Input'
         param_2.datatype = u'Field'
+        param_2.parameterDependencies = [param_1.name]
 
         # Population_Key_Field
         param_3 = arcpy.Parameter()
@@ -92,6 +93,7 @@ class PopToRaster(object):
         param_3.parameterType = 'Optional'
         param_3.direction = 'Input'
         param_3.datatype = u'Field'
+        param_3.parameterDependencies = [param_1.name]
 
         # Ancillary_Raster
         param_4 = arcpy.Parameter()
@@ -179,6 +181,7 @@ class PopToRaster(object):
             arcpy.PolygonToRaster_conversion(popFeatures, valueField, popRaster, cellAssignmentType, "NONE", outCellSize)
         
             ##Build attribute table for single band raster dataset (not always built automatically)
+            AddPrintMessage("Conversion complete, calculating statistics and building attribute table...",0)
             arcpy.CalculateStatistics_management(popRaster,"1","1","#")
             arcpy.BuildRasterAttributeTable_management(popRaster, "Overwrite")
         
@@ -283,38 +286,17 @@ class PopToRaster(object):
             
 
 class CombinePopAnc(object):
-    """C:\sync\DasyToolbox\Dasymetric_Toolbox.tbx\CombinePopAnc"""
-    class ToolValidator:
-      """Class for validating a tool's parameter values and controlling
-      the behavior of the tool's dialog."""
-    
-      def __init__(self, parameters):
-        """Setup the Geoprocessor and the list of tool parameters."""
-        import arcgisscripting as ARC
-        self.GP = ARC.create(9.3)
-        self.params = parameters
-    
-      def initializeParameters(self):
-        """Refine the properties of a tool's parameters.  This method is
-        called when the tool is opened."""
-        return
-    
-      def updateParameters(self):
-        """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parmater
-        has been changed."""
-        return
-    
-      def updateMessages(self):
-        """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-        return
-    
-    
-        
+    """---------------------------------------------------------------------------
+    # CombinePopAnc.py
+    # Part 2 of the Intelligent Areal Weighting Dasymetric Mapping Toolset
+    # Used by "Step 2 - Combine Population and Ancillary Rasters"
+    # Usage: CombinePopAnc <popRaster> <ancRaster> <dasyRaster> <dasyWorkTable>
+    # ---------------------------------------------------------------------------
+    """
     
     def __init__(self):
         self.label = u'Step 2 - Combine Population and Ancillary Rasters'
+        self.description = "This tool combines a raster of population enumeration units with an ancillary dataset to create an output raster with values that correspond to unique combinations of population units and ancillary classes. A standalone attribute table is exported from the raster attribute table that will be used to use intelligent dasymetric mapping to redistribute population within each source unit according to the ancillary classes."
         self.canRunInBackground = False
     def getParameterInfo(self):
         # Population_Raster
@@ -351,7 +333,14 @@ class CombinePopAnc(object):
 
         return [param_1, param_2, param_3, param_4]
     def isLicensed(self):
-        return True
+        """Allow the tool to execute, only if the Spatial Analyst extension 
+        is available."""
+        try:
+            if arcpy.CheckExtension("spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True  # tool can be executed
     def updateParameters(self, parameters):
         validator = getattr(self, 'ToolValidator', None)
         if validator:
@@ -361,151 +350,103 @@ class CombinePopAnc(object):
         if validator:
              return validator(parameters).updateMessages()
     def execute(self, parameters, messages):
-        with script_run_as(u'C:\\sync\\DasyToolbox\\CombinePopAnc.py'):
-            # ---------------------------------------------------------------------------
-            # CombinePopAnc.py
-            # Part 2 of the Intelligent Areal Weighting Dasymetric Mapping Toolset
-            # Used by "Step 2 - Combine Population and Ancillary Rasters"
-            # Usage: CombinePopAnc <popRaster> <ancRaster> <dasyRaster> <dasyWorkTable>
-            # ---------------------------------------------------------------------------
+        try:
+            # Check out any necessary licenses
+            if arcpy.CheckExtension("spatial") == "Available":
+                arcpy.CheckOutExtension("spatial")
+            else:
+                AddPrintMessage("Spatial Analyst license is unavailable", 2)
             
-            # Import system modules
-            import sys, string, os, arcpy, traceback
+            # Enable Overwriting
+            arcpy.env.overwriteOutput = True
             
-            # Helper function for displaying messages
-            def AddPrintMessage(msg, severity):
-                print (msg)
-                if severity == 0: messages.AddMessage(msg)
-                elif severity == 1: messages.AddWarningMessage(msg)
-                elif severity == 2: messages.AddErrorMessage(msg)
+            # Script arguments...
+            popRaster = parameters[0].valueAsText # A population raster dataset. This raster should have population unit IDs as the "value" field, and an attribute table that contains population counts for the associated population units. It is recommended that you use population raster created by the "Population Features to Raster" tool in this toolbox.
+            ancRaster = parameters[1].valueAsText # The ancillary raster dataset to be used to redistribute population. This should be the same input as the ancillary dataset used in the Population Features to Raster tool. Land-use or land-cover are the most frequently used ancillary datasets, but any dataset that has classes of relatively homogenous population density could be used here. 
+            dasyRaster = parameters[2].valueAsText # The name and full path of the output dasymetric raster that will be created. This raster will have a single value for each unique combination of population units and ancillary classes. When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for a GRID file format.
+            dasyWorkTable = parameters[3].valueAsText # A stand-alone working table will be created that will be used for subsequent dasymetric calculations. Performing calculations on a standalone table is more predictable than trying to perform calculations on a raster value attribute table. 
+        
+            # Derived arguments...
+            inputRasters = [popRaster,ancRaster]
+        
+            # Save current environment variables so they can be reset after the process
+            #tempMask = arcpy.env.mask
+            arcpy.env.mask = popRaster
+        
+            arcpy.env.workspace = GetPath(dasyRaster)
+        
+            # Process: Combine...
+            AddPrintMessage("Combining rasters...", 0)
+            outCombine = arcpy.sa.Combine(inputRasters)
+            # At ArcGIS 10, the combine tool crashed when run in a python script (bug NIM064542), so this script used the Combinatorial Or tool instead, which is much slower. For 10.2 and above, combine is recommended.
+            #outCombine = arcpy.sa.CombinatorialOr(popRaster,ancRaster)
+            AddPrintMessage("Saving combined rasters...", 0)
+            outCombine.save(dasyRaster)
             
-            def GetName(datasetName):
-                # Strips path from dataset
-                return os.path.basename(datasetName)
+            ##Build attribute table for single band raster dataset (not always built automatically)
+            AddPrintMessage("Building raster value attribute table...", 0)
+            arcpy.BuildRasterAttributeTable_management(dasyRaster, "Overwrite")
             
-            def GetPath(datasetName):
-                # Returns path to dataset
-                # Because of bug #NIM050483 it's necessary to confirm that this path is not a GRID folder - the Geoprocessing Tool Validator sometimes autopopulates this.
-                datasetPath = os.path.dirname(datasetName)
-                desc = arcpy.Describe(datasetPath)
-                if (desc.datatype == 'RasterDataset'):
-                  # Get parent folder, which is probably what the user intended.
-                  datasetPath = os.path.dirname(datasetPath)
-                return datasetPath
+            # Return environment variables to previous values
+            #arcpy.env.mask = tempMask
+            
+            workTablePath = GetPath(dasyWorkTable)
+            dasyWorkTable = os.path.join(workTablePath,GetName(dasyWorkTable)) # In case the folder was a grid.
                 
-            try:
-                # Check out any necessary licenses
-                if arcpy.CheckExtension("spatial") == "Available":
-                    arcpy.CheckOutExtension("spatial")
-                else:
-                    AddPrintMessage("Spatial Analyst license is unavailable", 2)
-                
-                # Script arguments...
-                popRaster = parameters[0].valueAsText # A population raster dataset. This raster should have population unit IDs as the "value" field, and an attribute table that contains population counts for the associated population units. It is recommended that you use population raster created by the "Population Features to Raster" tool in this toolbox.
-                ancRaster = parameters[1].valueAsText # The ancillary raster dataset to be used to redistribute population. This should be the same input as the ancillary dataset used in the Population Features to Raster tool. Land-use or land-cover are the most frequently used ancillary datasets, but any dataset that has classes of relatively homogenous population density could be used here. 
-                dasyRaster = parameters[2].valueAsText # The name and full path of the output dasymetric raster that will be created. This raster will have a single value for each unique combination of population units and ancillary classes. When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for a GRID file format.
-                dasyWorkTable = parameters[3].valueAsText # A stand-alone working table will be created that will be used for subsequent dasymetric calculations. Performing calculations on a standalone table is more predictable than trying to perform calculations on a raster value attribute table. 
+            AddPrintMessage("Creating the standalone working table...",0)
+            # Raster Value Attribute Tables (VATs) tend to be quirky for calculations, depending on the raster format.
+            # It is much more reliable and predictable to work with a standalone table.
+            arcpy.TableToTable_conversion(dasyRaster, workTablePath, GetName(dasyWorkTable))
+        
+            AddPrintMessage("Adding new fields and creating indices...",0)
+            # Add necessary fields to the new table
+            for field in ["POP_COUNT","POP_AREA","POP_EST","REM_AREA","TOTALFRACT","NEW_POP","NEWDENSITY"]:
+                arcpy.AddField_management(dasyWorkTable, field, "DOUBLE")
+        
+            # Need to derive ID fields from input raster table...
+            fieldsList = arcpy.ListFields(dasyRaster)
+            popIDField = fieldsList[-2].name # Should always be the second-to-last field
+            ancIDField = fieldsList[-1].name # Should always be the last field
+        
+            # Make sure if fieldnames were truncated in the new workspace, it's handled gracefully
+            popIDField = arcpy.ValidateFieldName(popIDField, workTablePath)
+            ancIDField = arcpy.ValidateFieldName(ancIDField, workTablePath)
+        
+            # Create an index on both source unit ID and ancillary ID to speed processing
+            # This tool is only supported for shapefiles and file geodatabases
+            # not standalone dbf files or personal geodatabases
+            if GetPath(dasyWorkTable)[-3:] == "gdb":
+                arcpy.AddIndex_management(dasyWorkTable, popIDField, "PopID_atx")
+                arcpy.AddIndex_management(dasyWorkTable, ancIDField, "AncID_atx")  
             
-                # Derived arguments...
-                inputRasters = [popRaster,ancRaster]
-            
-                # Save current environment variables so they can be reset after the process
-                #tempMask = arcpy.env.mask
-                arcpy.env.mask = popRaster
-            
-                arcpy.env.workspace = GetPath(dasyRaster)
-            
-                # Process: Combine...
-                AddPrintMessage("Combining rasters...", 0)
-                #outCombine = arcpy.sa.Combine(inputRasters)
-                outCombine = arcpy.sa.CombinatorialOr(popRaster,ancRaster)
-                AddPrintMessage("Saving combined rasters...", 0)
-                outCombine.save(dasyRaster)
-                
-                ##Build attribute table for single band raster dataset (not always built automatically)
-                AddPrintMessage("Building raster value attribute table...", 0)
-                arcpy.BuildRasterAttributeTable_management(dasyRaster, "Overwrite")
-                
-                # Return environment variables to previous values
-                #arcpy.env.mask = tempMask
-                
-                workTablePath = GetPath(dasyWorkTable)
-                dasyWorkTable = os.path.join(workTablePath,GetName(dasyWorkTable)) # In case the folder was a grid.
+        # Geoprocessing Errors will be caught here
+        except Exception as e:
+            print (e.message)
+            messages.AddErrorMessage(e.message)
+        
+        # other errors caught here
+        except:
+            # Cycle through Geoprocessing tool specific errors
+            for msg in range(0, arcpy.GetMessageCount()):
+                if arcpy.GetSeverity(msg) == 2:
+                    arcpy.AddReturnMessage(msg)
                     
-                AddPrintMessage("Creating the standalone working table...",0)
-                # Raster Value Attribute Tables (VATs) tend to be quirky for calculations, depending on the raster format.
-                # It is much more reliable and predictable to work with a standalone table.
-                arcpy.TableToTable_conversion(dasyRaster, workTablePath, GetName(dasyWorkTable))
-            
-                AddPrintMessage("Adding new fields and creating indices...",0)
-                # Add necessary fields to the new table
-                for field in ["POP_COUNT","POP_AREA","POP_EST","REM_AREA","TOTALFRACT","NEW_POP","NEWDENSITY"]:
-                    arcpy.AddField_management(dasyWorkTable, field, "DOUBLE")
-            
-                # Need to derive ID fields from input raster table...
-                fieldsList = arcpy.ListFields(dasyRaster)
-                popIDField = fieldsList[-2].name # Should always be the second-to-last field
-                ancIDField = fieldsList[-1].name # Should always be the last field
-            
-                # Make sure if fieldnames were truncated in the new workspace, it's handled gracefully
-                popIDField = arcpy.ValidateFieldName(popIDField, workTablePath)
-                ancIDField = arcpy.ValidateFieldName(ancIDField, workTablePath)
-            
-                # Create an index on both source unit ID and ancillary ID to speed processing
-                # This tool is only supported for shapefiles and file geodatabases
-                # not standalone dbf files or personal geodatabases
-                if GetPath(dasyWorkTable)[-3:] == "gdb":
-                    arcpy.AddIndex_management(dasyWorkTable, popIDField, "PopID_atx")
-                    arcpy.AddIndex_management(dasyWorkTable, ancIDField, "AncID_atx")  
-                
-            # Geoprocessing Errors will be caught here
-            except Exception as e:
-                print (e.message)
-                messages.AddErrorMessage(e.message)
-            
-            # other errors caught here
-            except:
-                # Cycle through Geoprocessing tool specific errors
-                for msg in range(0, arcpy.GetMessageCount()):
-                    if arcpy.GetSeverity(msg) == 2:
-                        arcpy.AddReturnMessage(msg)
-                        
-                # Return Python specific errors
-                tb = sys.exc_info()[2]
-                tbinfo = traceback.format_tb(tb)[0]
-                pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-                        str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-                AddPrintMessage(pymsg, 2)
+            # Return Python specific errors
+            tb = sys.exc_info()[2]
+            tbinfo = traceback.format_tb(tb)[0]
+            pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+                    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            AddPrintMessage(pymsg, 2)
             
 
 class CreateAncillaryPresetTable(object):
-    """C:\sync\DasyToolbox\Dasymetric_Toolbox.tbx\CreateAncillaryPresetTable"""
-    class ToolValidator:
-      """Class for validating a tool's parameter values and controlling
-      the behavior of the tool's dialog."""
-    
-      def __init__(self, parameters):
-        """Setup the Geoprocessor and the list of tool parameters."""
-        import arcgisscripting as ARC
-        self.GP = ARC.create(9.3)
-        self.params = parameters
-    
-      def initializeParameters(self):
-        """Refine the properties of a tool's parameters.  This method is
-        called when the tool is opened."""
-        return
-    
-      def updateParameters(self):
-        """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parmater
-        has been changed."""
-        return
-    
-      def updateMessages(self):
-        """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-        return
-    
+    '''
+    # ---------------------------------------------------------------------------
+    # CreateAncillaryPresetTable.py
+    # Part 5 of the Intelligent Areal Weighting Dasymetric Mapping Toolset
+    # Usage: CreateAncillaryPresetTable <ancRaster> <ancPresetTable>                
+    # ---------------------------------------------------------------------------
+    '''
     def __init__(self):
         self.label = u'Step 3 - Create Ancillary Class Preset Table'
         self.canRunInBackground = False
@@ -538,79 +479,50 @@ class CreateAncillaryPresetTable(object):
         if validator:
              return validator(parameters).updateMessages()
     def execute(self, parameters, messages):
-        with script_run_as(u'C:\\sync\\DasyToolbox\\CreateAncillaryPresetTable.py'):
-            # ---------------------------------------------------------------------------
-            # CreateAncillaryPresetTable.py
-            # Part 5 of the Intelligent Areal Weighting Dasymetric Mapping Toolset
-            # Usage: CreateAncillaryPresetTable <ancRaster> <ancPresetTable>                
-            # ---------------------------------------------------------------------------
+        try:
+            # Allow output to be overwritten
+            arcpy.env.overwriteOutput = True
             
-            # Import system modules
-            import sys, string, os, arcpy, traceback
+            # Script arguments...
+            ancRaster = parameters[0].valueAsText # The ancillary raster dataset.
+            ancPresetTable = parameters[1].valueAsText # The output standalone table with full path that will be created.
+        
+            whereClause = arcpy.AddFieldDelimiters(GetPath(ancRaster),"Count") + " > 0"
+        
+            ancRasterTableView = arcpy.MakeTableView_management(ancRaster, "ancRasterView", whereClause)
             
-            # Helper function for displaying messages
-            def AddPrintMessage(msg, severity):
-                print (msg)
-                if severity == 0: messages.AddMessage(msg)
-                elif severity == 1: messages.AddWarningMessage(msg)
-                elif severity == 2: messages.AddErrorMessage(msg)
+            AddPrintMessage("Creating the standalone table",0)
+            arcpy.TableToTable_conversion("ancRasterView", GetPath(ancPresetTable), GetName(ancPresetTable))
+        
+            ancPresetTable = os.path.join(GetPath(ancPresetTable),GetName(ancPresetTable)) # In case the folder was a grid.
             
-            def GetName(datasetName):
-                # Strips path from dataset
-                return os.path.basename(datasetName)
-            
-            def GetPath(datasetName):
-                # Returns path to dataset
-                # Because of bug #NIM050483 it's necessary to confirm that this path is not a GRID folder - the Geoprocessing Tool Validator sometimes autopopulates this.
-                datasetPath = os.path.dirname(datasetName)
-                desc = arcpy.Describe(datasetPath)
-                if (desc.datatype == 'RasterDataset'):
-                  # Get parent folder, which is probably what the user intended.
-                  datasetPath = os.path.dirname(datasetPath)
-                return datasetPath
-            
-            try:
-                # Script arguments...
-                ancRaster = parameters[0].valueAsText # The ancillary raster dataset.
-                ancPresetTable = parameters[1].valueAsText # The output standalone table with full path that will be created.
-            
-                whereClause = arcpy.AddFieldDelimiters(GetPath(ancRaster),"Count") + " > 0"
-            
-                ancRasterTableView = arcpy.MakeTableView_management(ancRaster, "ancRasterView", whereClause)
-                
-                AddPrintMessage("Creating the standalone table",0)
-                arcpy.TableToTable_conversion("ancRasterView", GetPath(ancPresetTable), GetName(ancPresetTable))
-            
-                ancPresetTable = os.path.join(GetPath(ancPresetTable),GetName(ancPresetTable)) # In case the folder was a grid.
-                
-                # Add preset field to the new table
-                arcpy.AddField_management(ancPresetTable, "PRESETDENS", "DOUBLE")
-            
-                AddPrintMessage("The table is ready - please populate the PRESETDENS field with the appropriate preset density values, and remove any ancillary classes whose density should be obtained empirically.",0)
-            
-                # Clean up the in-memory view
-                arcpy.Delete_management("ancRasterView")
-            
-            # Geoprocessing Errors will be caught here
-            except Exception as e:
-                print (e.message)
-                messages.AddErrorMessage(e.message)
-            
-            # other errors caught here
-            except:
-                # Cycle through Geoprocessing tool specific errors
-                for msg in range(0, arcpy.GetMessageCount()):
-                    if arcpy.GetSeverity(msg) == 2:
-                        arcpy.AddReturnMessage(msg)
-                        
-                # Return Python specific errors
-                tb = sys.exc_info()[2]
-                tbinfo = traceback.format_tb(tb)[0]
-                pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-                        str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-                AddPrintMessage(pymsg, 2)
-            
-            
+            # Add preset field to the new table
+            arcpy.AddField_management(ancPresetTable, "PRESETDENS", "DOUBLE")
+        
+            AddPrintMessage("The table is ready - please populate the PRESETDENS field with the appropriate preset density values, and remove any ancillary classes whose density should be obtained empirically.",0)
+        
+            # Clean up the in-memory view
+            arcpy.Delete_management("ancRasterView")
+        
+        # Geoprocessing Errors will be caught here
+        except Exception as e:
+            print (e.message)
+            messages.AddErrorMessage(e.message)
+        
+        # other errors caught here
+        except:
+            # Cycle through Geoprocessing tool specific errors
+            for msg in range(0, arcpy.GetMessageCount()):
+                if arcpy.GetSeverity(msg) == 2:
+                    arcpy.AddReturnMessage(msg)
+                    
+            # Return Python specific errors
+            tb = sys.exc_info()[2]
+            tbinfo = traceback.format_tb(tb)[0]
+            pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+                    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            AddPrintMessage(pymsg, 2)
+                      
 
 class DasymetricCalculations(object):
     """C:\sync\DasyToolbox\Dasymetric_Toolbox.tbx\DasymetricCalculations"""
