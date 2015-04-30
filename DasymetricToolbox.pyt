@@ -677,7 +677,7 @@ class DasymetricCalculations(object):
         
         # Pulls all the values from a field in a table into a python list object
         def GetValues(table, field, float="n"):
-            inList = []
+            #inList = []
             if table and table != "#":
                 fieldObj = arcpy.ListFields(table, field)[0]
                 '''  Legacy cursor code for performance comparison
@@ -804,7 +804,7 @@ class DasymetricCalculations(object):
                 outPresetCatList = ['"' + AncCat + '"' for AncCat in outPresetCatList] 
             presetValList = GetValues(presetTable, presetField, "y")
             # Use List comprehension to grab uninhabited classes
-            unInhabList = [presetCat for presetCat,presetVal in zip(inPresetCatList,presetValList) if float(presetValList[i]) == 0]
+            unInhabList = [presetCat for presetCat,presetVal in zip(inPresetCatList,presetValList) if float(presetVal) == 0]
         
             # Make table view from the output working table for selection purposes
             outWorkTableView = "OutWorkTableView"
@@ -824,7 +824,7 @@ class DasymetricCalculations(object):
             inhabAreaTable, inhabAreaTableName = NameCheck("InhabAreaTable", tableSuffix)
             arcpy.Frequency_analysis(outWorkTableView, inhabAreaTable, popIDField, dasyAreaField)
             arcpy.AddJoin_management(outWorkTableView, popIDField, inhabAreaTable, popIDField, "KEEP_COMMON")
-            arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_AREA"), "!" + joinedFieldName(dasyWorkTableView,inhabAreaTableName,dasyAreaField) + "!", 'PYTHON')
+            arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_AREA"), "!" + joinedFieldName(outWorkTableView,inhabAreaTableName,dasyAreaField) + "!", 'PYTHON')
             arcpy.RemoveJoin_management(outWorkTableView, inhabAreaTableName)
             arcpy.AddJoin_management(popWorkTableView, "Value", inhabAreaTable, popIDField, "KEEP_COMMON")
             arcpy.CalculateField_management(popWorkTableView, joinedFieldName(popWorkTableView,popWorkTableName,"POP_AREA"), "!" + joinedFieldName(popWorkTableView,inhabAreaTableName,dasyAreaField) + "!", 'PYTHON')
@@ -834,7 +834,7 @@ class DasymetricCalculations(object):
             # Make sure output working table has population counts
             arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION")
             arcpy.AddJoin_management(outWorkTableView, popIDField, popWorkTableView, "Value", "KEEP_COMMON")
-            arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_COUNT"), "!" + joinedFieldName(dasyWorkTableView,popWorkTableName,popCountField) + "!", 'PYTHON')
+            arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_COUNT"), "!" + joinedFieldName(outWorkTableView,popWorkTableName,popCountField) + "!", 'PYTHON')
             arcpy.RemoveJoin_management(outWorkTableView, popWorkTableName)
         
             # The default value for a number field is zero in a shapefile, but is null in a geodatabase
@@ -856,12 +856,15 @@ class DasymetricCalculations(object):
             popAreawhereClause = arcpy.AddFieldDelimiters(popWorkTableView,"POP_AREA") + " > " + str(popAreaMin)
             percentAreaTable, percentAreaTableName = NameCheck("percentAreaTable",tableSuffix)
             arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", popAreawhereClause)
+            # The Frequency tool creates a new table with a row corresponding to each unique combination of population unit and ancillary class, 
+            # summing the total area for each - since a population unit might contain multiple separate areas of the same ancillary class.
             arcpy.Frequency_analysis(outWorkTableView, percentAreaTable, popIDField + ";" + ancCatName + ";POP_AREA", dasyAreaField)
+            # Add and calculate a field that will contain the percent of the population unit covered by ancillary class
             arcpy.AddField_management(percentAreaTable, "percent", "DOUBLE")
             arcpy.CalculateField_management(percentAreaTable, "percent", "!" + dasyAreaField + "! / !POP_AREA!", 'PYTHON')
             for inAncCat, OutAncCat in zip(inAncCatList, outAncCatList):
-                whereClause = arcpy.AddFieldDelimiters(percentAreaTable,"percent") + " >= " + percent
-                whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(percentAreaTable,ancCatName) + " = " + inAncCat
+                whereClause = arcpy.AddFieldDelimiters(percentAreaTable,"percent") + " >= " + str(percent)
+                whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(percentAreaTable,ancCatName) + " = " + str(inAncCat)
                 popSelSetTable, popSelSetTableName = NameCheck("PopSelSet",tableSuffix)
                 arcpy.TableSelect_analysis(percentAreaTable, popSelSetTable, whereClause)
                 count = int(arcpy.GetCount_management(popSelSetTable).getOutput(0))
@@ -871,11 +874,11 @@ class DasymetricCalculations(object):
                     # Designate these source units as representative of the current ancillary category by putting the category value in the REP_CAT field
                     arcpy.CalculateField_management(popWorkTableView, joinedFieldName(popWorkTableView,popWorkTableName,"REP_CAT"), OutAncCat, 'PYTHON')
                     arcpy.RemoveJoin_management(popWorkTableView, popSelSetTableName) 
-                    AddPrintMessage("Class " + inAncCat + " was sufficiently sampled with " + str(count) + " representative source units.",0)
+                    AddPrintMessage("Class " + str(inAncCat) + " was sufficiently sampled with " + str(count) + " representative source units.",0)
                 # Flag this class if it was insufficiently sampled and not preset
                 elif inAncCat not in inPresetCatList:
                     unSampledList.append(inAncCat)
-                    AddPrintMessage("Class " + inAncCat + " was not sufficiently sampled with only " + str(count) + " representative source units.",0)
+                    AddPrintMessage("Class " + str(inAncCat) + " was not sufficiently sampled with only " + str(count) + " representative source units.",0)
                 # End loop for this ancillary class...
                 #Funkiness because of lock error
                 import time
@@ -916,7 +919,7 @@ class DasymetricCalculations(object):
                 else:
                     arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION")
                 #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "[" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "] * [" + joinedFieldName(outWorkTableView,ancDensTableName,"CLASSDENS") + "]")
-                arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(dasyWorkTableView,dasyWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(dasyWorkTableView,ancDensTableName,"CLASSDENS") + "!", 'PYTHON')
+                arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(outWorkTableView,ancDensTableName,"CLASSDENS") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, ancDensTableName)
             else:
                 # CreateTable_management (out_path, out_name, template, config_keyword)
@@ -933,7 +936,7 @@ class DasymetricCalculations(object):
                 arcpy.AddJoin_management(outWorkTableView, ancCatName, presetTable, "Value", "KEEP_COMMON")
                 presetTableName = GetName(GetFileName(presetTable))
                 #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "[" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "] * [" + joinedFieldName(outWorkTableView,presetTableName,presetField) + "]")
-                arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(dasyWorkTableView,dasyWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(dasyWorkTableView,ancPresetTableName,presetField) + "!", 'PYTHON')
+                arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(outWorkTableView,presetTableName,presetField) + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView,presetTableName)
                 # Add these preset values to the ancDensTable for comparison purposes, altering the official CLASSDENS field, but not the SAMPLDENS field.
                 i = 0
@@ -975,7 +978,7 @@ class DasymetricCalculations(object):
                 whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA")) + " <> 0"
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
                 #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "[" + joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF") + "] * [" + joinedFieldName(outWorkTableView,outWorkTableName,"REM_AREA") + "] / [" + joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA") + "]")
-                arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(dasyWorkTableView,remainderTableName,"POP_DIFF") + "! * !" + joinedFieldName(dasyWorkTableView,dasyWorkTableName,"REM_AREA") + "! / !" + joinedFieldName(dasyWorkTableView,remainderTableName,"REM_AREA") + "!", 'PYTHON')
+                arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF") + "! * !" + joinedFieldName(outWorkTableView,outWorkTableName,"REM_AREA") + "! / !" + joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, remainderTableName)
                 arcpy.Delete_management(remainderTable)
         
@@ -995,7 +998,7 @@ class DasymetricCalculations(object):
                 arcpy.AddJoin_management(outWorkTableView, ancCatName, ancDensTable2, ancCatName, "KEEP_COMMON")
                 # - Again recalculate population estimate field (POP_EST) using new representative density for final stats analysis
                 #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "[" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "] * [" + joinedFieldName(outWorkTableView,ancDensTable2Name,"CLASSDENS") + "]")
-                arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(dasyWorkTableView,dasyWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(dasyWorkTableView,ancDensTable2Name,"CLASSDENS") + "!", 'PYTHON')
+                arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(outWorkTableView,ancDensTable2Name,"CLASSDENS") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, ancDensTable2Name)
         
                 # - Lastly, add these IAW values to the ancDensTable
@@ -1026,7 +1029,7 @@ class DasymetricCalculations(object):
             arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
             # [TOTALFRACT] = [POP_EST] / POP_ESTSum
             #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"TOTALFRACT"), "[" + joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST") + "] / [" + joinedFieldName(outWorkTableView,popEstSumTableName,"POP_EST") + "]")
-            arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"TOTALFRACT"), "!" + joinedFieldName(dasyWorkTableView,dasyWorkTableName,"POP_EST") + "! / !" + joinedFieldName(dasyWorkTableView,popEstSumTableName,"POP_EST") + "!", 'PYTHON')
+            arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"TOTALFRACT"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST") + "! / !" + joinedFieldName(outWorkTableView,popEstSumTableName,"POP_EST") + "!", 'PYTHON')
             arcpy.RemoveJoin_management(outWorkTableView, popEstSumTableName)
             arcpy.Delete_management(popEstSumTable)
             # The total fraction times the actual population is the true dasymetric estimate
