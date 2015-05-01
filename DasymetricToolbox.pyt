@@ -696,10 +696,21 @@ class DasymetricCalculations(object):
             return inList
         
          # Because NULL values can be problematic in queries and field calculations, replaces all NULLS with zeroess.   
-        def RemoveNulls(tableView,field): 
-            arcpy.SelectLayerByAttribute_management(tableView, "NEW_SELECTION", arcpy.AddFieldDelimiters(tableView,field) + " IS NULL")
-            if arcpy.GetCount_management(tableView):
-                arcpy.CalculateField_management(tableView, field, "0", 'PYTHON')
+        def RemoveNulls(table,field): 
+            #===================================================================
+            # Legacy Code - before arcpy.da data access module
+            # arcpy.SelectLayerByAttribute_management(tableView, "NEW_SELECTION", arcpy.AddFieldDelimiters(tableView,field) + " IS NULL")
+            # if arcpy.GetCount_management(tableView):
+            #     arcpy.CalculateField_management(tableView, field, "0", 'PYTHON')
+            #===================================================================
+            whereClause = arcpy.AddFieldDelimiters(table,field) + " IS NULL"
+            calculateStaticValue(table,field,"0",whereClause)                
+        
+        def calculateStaticValue(table,field,value,whereClause=''):
+            with arcpy.da.UpdateCursor(table, [field], whereClause) as cursor:
+                for row in cursor:
+                    row[0] = value
+                    cursor.updateRow(row)     
         
         # The working tables are frequently reused, so it's necessary to reset fields to zeroes
         def ClearField(tableName,fieldName):
@@ -707,9 +718,11 @@ class DasymetricCalculations(object):
             if (len(fields) > 0):
                 field = fields[0]
                 if field.type == 'String':
-                    arcpy.CalculateField_management(tableName,fieldName, "''", 'PYTHON')
+                    #arcpy.CalculateField_management(tableName,fieldName, "''", 'PYTHON')
+                    calculateStaticValue(tableName,fieldName,"''")
                 else:
-                    arcpy.CalculateField_management(tableName,fieldName, "0", 'PYTHON')
+                    #arcpy.CalculateField_management(tableName,fieldName, "0", 'PYTHON')
+                    calculateStaticValue(tableName,fieldName,"0")
         
         # Convert output from field property into expected input for field creation.
         def FieldProps(tableName, fieldName):
@@ -817,7 +830,7 @@ class DasymetricCalculations(object):
             
             # Create a summary table of the "populated" area of each population source unit
             AddPrintMessage("Creating summary table with the populated area of each source unit...",0)
-            if unInhabList:
+            '''if unInhabList:
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", arcpy.AddFieldDelimiters(outWorkTableView,ancCatName) + " NOT IN (" + ", ".join(unInhabList) + ")")
             else:
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION")
@@ -830,7 +843,29 @@ class DasymetricCalculations(object):
             arcpy.CalculateField_management(popWorkTableView, joinedFieldName(popWorkTableView,popWorkTableName,"POP_AREA"), "!" + joinedFieldName(popWorkTableView,inhabAreaTableName,dasyAreaField) + "!", 'PYTHON')
             arcpy.RemoveJoin_management(popWorkTableView, inhabAreaTableName)
             arcpy.Delete_management(inhabAreaTable)
-        
+            '''
+            # Trying the above using arcpy.da.
+            # Initialize counter to store population unit IDs
+            from collections import Counter
+            inhabCounter = Counter()
+            if unInhabList:
+                inhabWhereClause = arcpy.AddFieldDelimiters(outWorkTable,ancCatName) + " NOT IN (" + ", ".join(unInhabList) + ")"
+            else:
+                inhabWhereClause = ""
+            with arcpy.da.SearchCursor(outWorkTable, [popIDField, dasyAreaField], inhabWhereClause) as cursor:
+                for row in cursor:
+                    # this summarizes total area by population unit into a python dictionary
+                    inhabCounter.update({row[0]:row[1]})
+            # Write the inhabited area of each population unit back to the output and population work tables.
+            with arcpy.da.UpdateCursor(outWorkTable, [popIDField,"POP_AREA"], inhabWhereClause) as cursor:
+                for row in cursor:
+                    row[1] = inhabCounter.get(row[0]) 
+                    cursor.updateRow(row)
+            with arcpy.da.UpdateCursor(popWorkingTable, ["Value","POP_AREA"]) as cursor:
+                for row in cursor:
+                    row[1] = inhabCounter.get(row[0])
+                    cursor.updateRow(row)                     
+    
             # Make sure output working table has population counts
             arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION")
             arcpy.AddJoin_management(outWorkTableView, popIDField, popWorkTableView, "Value", "KEEP_COMMON")
@@ -843,9 +878,15 @@ class DasymetricCalculations(object):
             RemoveNulls(popWorkTableView,"POP_AREA")
         
             # Select all non-zero population units (dividing by zero to get density is bad)
+            AddPrintMessage("Calculating population density...", 0) 
             popAreawhereClause = arcpy.AddFieldDelimiters(popWorkTableView,"POP_AREA") + " > 0"
-            arcpy.SelectLayerByAttribute_management(popWorkTableView, "NEW_SELECTION", popAreawhereClause)
-            arcpy.CalculateField_management(popWorkTableView, "POP_DENS", "!" + popCountField + "! / !POP_AREA!", 'PYTHON')
+            #arcpy.SelectLayerByAttribute_management(popWorkTableView, "NEW_SELECTION", popAreawhereClause)
+            #arcpy.CalculateField_management(popWorkTableView, "POP_DENS", "!" + popCountField + "! / !POP_AREA!", 'PYTHON')
+            with arcpy.da.UpdateCursor(popWorkingTable, ["POP_DENS", popCountField, "POP_AREA"], popAreawhereClause) as cursor:
+                for row in cursor:
+                    # Population density = population count / populated area
+                    row[0] = row[1] / row[2] 
+                    cursor.updateRow(row)
             
             # Begin selection process...
             AddPrintMessage("Selecting representative source units...",0)
@@ -853,6 +894,7 @@ class DasymetricCalculations(object):
             # - by selecting all population units that "represent" that ancillary class and summing population and area.
             # percent area method
             # Slightly different selection set here - only inhabited classes above the minimum threshold specified by the user.
+            '''
             popAreawhereClause = arcpy.AddFieldDelimiters(popWorkTableView,"POP_AREA") + " > " + str(popAreaMin)
             percentAreaTable, percentAreaTableName = NameCheck("percentAreaTable",tableSuffix)
             arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", popAreawhereClause)
@@ -877,7 +919,7 @@ class DasymetricCalculations(object):
                     AddPrintMessage("Class " + str(inAncCat) + " was sufficiently sampled with " + str(count) + " representative source units.",0)
                 # Flag this class if it was insufficiently sampled and not preset
                 elif inAncCat not in inPresetCatList:
-                    unSampledList.append(inAncCat)
+                    unSampledList.append(str(inAncCat))
                     AddPrintMessage("Class " + str(inAncCat) + " was not sufficiently sampled with only " + str(count) + " representative source units.",0)
                 # End loop for this ancillary class...
                 #Funkiness because of lock error
@@ -888,6 +930,31 @@ class DasymetricCalculations(object):
                         arcpy.Delete_management(popSelSetTable)
                         break
             arcpy.Delete_management(percentAreaTable)
+            '''
+            for inAncCat, OutAncCat in zip(inAncCatList, outAncCatList):
+                catCounter = Counter()
+                popAreawhereClause = arcpy.AddFieldDelimiters(outWorkTable,"POP_AREA") + " > " + str(popAreaMin)
+                popAreawhereClause = popAreawhereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTable,ancCatName) + " = " + str(inAncCat)
+                with arcpy.da.SearchCursor(outWorkTable, [popIDField, "POP_AREA", dasyAreaField], popAreawhereClause) as cursor:
+                    for row in cursor:
+                        # this summarizes populated area by population unit into a python dictionary
+                        catCounter.update({(row[0],row[1]):row[2]})
+                # Obtain a list of those population unit IDs whose area of this ancillary class falls above the user-specified percent threshold
+                repUnitsList = [str(popInfo[0]) for popInfo,catArea in catCounter.items() if (catArea/popInfo[1]) >= float(percent)]
+                # If the number of "representative units" falls above the user-specified threshold
+                repCount = len(repUnitsList)
+                if repCount > float(sampleMin):
+                    # Designate these source units as representative of the current ancillary category by putting the category value in the REP_CAT field
+                    repWhereClause = arcpy.AddFieldDelimiters(popWorkingTable,"Value") + " IN (" + ", ".join(repUnitsList) + ")"
+                    with arcpy.da.UpdateCursor(popWorkingTable, ["REP_CAT"], repWhereClause) as cursor:
+                        for row in cursor:
+                            row[0] = OutAncCat
+                            cursor.updateRow(row)
+                    AddPrintMessage("Class " + str(inAncCat) + " was sufficiently sampled with " + str(repCount) + " representative source units.",0)
+                # Flag this class if it was insufficiently sampled and not preset
+                elif inAncCat not in inPresetCatList:
+                    unSampledList.append(str(inAncCat))
+                    AddPrintMessage("Class " + str(inAncCat) + " was not sufficiently sampled with only " + str(repCount) + " representative source units.",0)
             
             # For each ancillary class (listed in the REP_CAT field) calculate sum of population and area and statistics
             # - (count, mean, min, max, stddev) of densities further analysis
@@ -907,7 +974,8 @@ class DasymetricCalculations(object):
                 arcpy.CalculateField_management(ancDensTable, "SAMPLDENS", calcExpression, 'PYTHON')
                 # Add a field that designates these classes as "Sampled"
                 arcpy.AddField_management(ancDensTable, "METHOD", "TEXT", "", "", "7")
-                arcpy.CalculateField_management(ancDensTable, "METHOD", '"Sampled"', 'PYTHON')
+                #arcpy.CalculateField_management(ancDensTable, "METHOD", '"Sampled"', 'PYTHON')
+                calculateStaticValue(ancDensTable,"METHOD",'"Sampled"')
                 arcpy.AddField_management(ancDensTable, "CLASSDENS", "DOUBLE")    
                 arcpy.CalculateField_management(ancDensTable, "CLASSDENS", "!SAMPLDENS!", 'PYTHON')
                 # For all sampled classes that are not preset, calculate a population estimate for every intersected polygon by joining the ancDensTable and multiplying the class density by the polygon area.
@@ -939,24 +1007,18 @@ class DasymetricCalculations(object):
                 arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(outWorkTableView,presetTableName,presetField) + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView,presetTableName)
                 # Add these preset values to the ancDensTable for comparison purposes, altering the official CLASSDENS field, but not the SAMPLDENS field.
-                i = 0
-                for inPresetCat in inPresetCatList:
+                for inPresetCat,outPresetCat,presetVal in zip(inPresetCatList,outPresetCatList,presetValList):
                     ancDensTableView = "AncDensTableView_" + str(inPresetCat)
                     arcpy.MakeTableView_management(ancDensTable, ancDensTableView, arcpy.AddFieldDelimiters(ancDensTable,"REP_CAT") + " = " + inPresetCat)
-                    count = int(arcpy.GetCount_management(ancDensTableView).getOutput(0))
-                    if count > 0:
-                        arcpy.CalculateField_management(ancDensTableView, "CLASSDENS", presetValList[i], 'PYTHON')
+                    if int(arcpy.GetCount_management(ancDensTableView).getOutput(0)) > 0:
+                        arcpy.CalculateField_management(ancDensTableView, "CLASSDENS", presetVal, 'PYTHON')
                         arcpy.CalculateField_management(ancDensTableView, "METHOD", '"Preset"', 'PYTHON')
                     else:
-                        rows = arcpy.InsertCursor(ancDensTable)
-                        row = rows.newRow()
-                        row.CLASSDENS = presetValList[i]
-                        row.METHOD = "Preset"
-                        row.REP_CAT = outPresetCatList[i]
-                        rows.insertRow(row)
-                        row, rows = None, None
-                    i = i + 1
-                outPresetCatList, inPresetCatList, i = None, None, None
+                        cursorFields = ["CLASSDENS","METHOD","REP_CAT"]
+                        cursor = arcpy.da.InsertCursor(ancDensTable,cursorFields)
+                        cursor.insertRow([presetVal,"Preset",outPresetCat])
+                        del cursor
+                outPresetCatList, inPresetCatList = None, None
             RemoveNulls(outWorkTableView,"POP_EST")
             
             # Intelligent areal weighting for unsampled classes
@@ -965,8 +1027,13 @@ class DasymetricCalculations(object):
             # - among the remaining unsampled inhabited dasymetric polygons
             AddPrintMessage("Performing intelligent areal weighting for unsampled classes...",0)
             if unSampledList:
-                arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", arcpy.AddFieldDelimiters(outWorkTableView,ancCatName) + " IN (" + ", ".join(unSampledList) + ")")
-                arcpy.CalculateField_management(outWorkTableView, "REM_AREA", "!" + dasyAreaField + "!", 'PYTHON')
+                #arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", arcpy.AddFieldDelimiters(outWorkTableView,ancCatName) + " IN (" + ", ".join(unSampledList) + ")")
+                #arcpy.CalculateField_management(outWorkTableView, "REM_AREA", "!" + dasyAreaField + "!", 'PYTHON')
+                unsampledWhereClause = arcpy.AddFieldDelimiters(outWorkTable,ancCatName) + " IN (" + ", ".join(unSampledList) + ")"
+                with arcpy.da.UpdateCursor(outWorkTable, ["REM_AREA",dasyAreaField], unsampledWhereClause) as cursor:
+                    for row in cursor:
+                        row[0] = row[1]
+                        cursor.updateRow(row)
                 RemoveNulls(outWorkTableView,"REM_AREA")
                 remainderTable, remainderTableName = NameCheck("remainderTable", tableSuffix)
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION") # To clear previous selection set
@@ -981,6 +1048,7 @@ class DasymetricCalculations(object):
                 arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF") + "! * !" + joinedFieldName(outWorkTableView,outWorkTableName,"REM_AREA") + "! / !" + joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, remainderTableName)
                 arcpy.Delete_management(remainderTable)
+        
         
                 # Calculate population density values for these unsampled classes
                 # - for every unsampled ancillary class, sum total area and total population estimated using intelligent areal weighting.  
@@ -1004,14 +1072,11 @@ class DasymetricCalculations(object):
                 # - Lastly, add these IAW values to the ancDensTable
                 iawValList = GetValues(ancDensTable2, "CLASSDENS", "y")
                 unSampledList = GetValues(ancDensTable2, ancCatName)
-                rows = arcpy.InsertCursor(ancDensTable)
-                for i in range(0, len(iawValList)):
-                    row = rows.newRow()
-                    row.CLASSDENS = iawValList[i]
-                    row.METHOD = "IAW"
-                    row.REP_CAT = int(unSampledList[i])
-                    rows.insertRow(row)
-                del rows, row
+                cursorFields = ['CLASSDENS','METHOD','REP_CAT']
+                cursor = arcpy.da.InsertCursor(ancDensTable,cursorFields)
+                for iawVal,unSampledVal in zip(iawValList,unSampledList):
+                    cursor.insertRow([iawVal,"IAW",unSampledVal])
+                del cursor
                 arcpy.Delete_management(ancDensTable2)
             # End of intelligent areal weighting
              
