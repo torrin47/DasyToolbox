@@ -956,7 +956,7 @@ class DasymetricCalculations(object):
                     unSampledList.append(str(inAncCat))
                     AddPrintMessage("Class " + str(inAncCat) + " was not sufficiently sampled with only " + str(repCount) + " representative source units.",0)
             
-            # For each ancillary class (listed in the REP_CAT field) calculate sum of population and area and statistics
+            # For each ancillary class (listif ed in the REP_CAT field) calculate sum of population and area and statistics
             # - (count, mean, min, max, stddev) of densities further analysis
             AddPrintMessage("Calculating statistics for selected classes...",0)
             # Make sure there are representative classes.
@@ -1048,8 +1048,37 @@ class DasymetricCalculations(object):
                 arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF") + "! * !" + joinedFieldName(outWorkTableView,outWorkTableName,"REM_AREA") + "! / !" + joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, remainderTableName)
                 arcpy.Delete_management(remainderTable)
-        
-        
+                '''
+                Collection.counter isn't going to work for summing multiple fields at once - need to write my own function for this.
+                use dictionary:
+                if d1.has_key('a'):
+                    d1['a'] = tuple(map(sum,zip(d1['a']),(3,7)))
+                else:
+                    d1['a'] = (3,7)
+                '''
+                popDiffDict = {}
+                with arcpy.da.SearchCursor(outWorkTable, [popIDField, "POP_COUNT", "POP_EST", "REM_AREA"]) as cursor:
+                    for row in cursor:
+                        pkey = (row[0],row[1])
+                        pvalues = (row[2],row[3])
+                        # this summarizes populated area by population unit into a python dictionary
+                        if popDiffDict.has_key(key):
+                            # if there is an existing value for this key, sum the values of the associated fields
+                            popDiffDict[key] = tuple(map(sum,zip(popDiffDict[key]),pvalues))
+                        else:
+                            popDiffDict[key] = pvalues
+                
+                # Select only those units whose population difference is greater than zero with nonzero remaining area
+                # remainderTable = popUnitID: (PopulationDifference (POP_COUNT - POP_EST),Remainder Area (REM_AREA)
+                remainderTable = {key[0]:(key[1] - value[0],value[1]) for key, value in popDiffDict.items() if key[1] - value[0]>0 and value[1] != 0}
+                
+                with arcpy.da.UpdateCursor(outWorkTable, [popIDField,"POP_EST","REM_AREA"]) as cursor:
+                        for row in cursor:
+                            # So many references by index, gets a little confusing.  If this is a population unit of concern:
+                            if remainderTable.has_key(row[0]):
+                                # The Population Estimate value = the popuation difference from the remainder table * the remaining area of the intersected unit
+                                row[1] = remainderTable[row[0]][0] * row[2] / remainderTable[row[0]][1]
+                                cursor.updateRow(row)
                 # Calculate population density values for these unsampled classes
                 # - for every unsampled ancillary class, sum total area and total population estimated using intelligent areal weighting.  
                 # Calculate class representative density.
