@@ -662,19 +662,6 @@ class DasymetricCalculations(object):
         def GetFileName(datasetName):
             return os.path.splitext(datasetName)[0] 
         
-        # Checks for existing files in the directory with the same name 
-        # and adds an integer to the end of non-unique filenames 
-        def NameCheck(name,tableSuffix):
-            j,okName = 1,""
-            while not okName:
-                tList = arcpy.ListDatasets(name + '*')
-                if tList:
-                    name = name[:-2] + "_" + str(j)
-                else:
-                    okName = name
-                j = j + 1
-            return okName + tableSuffix, okName
-        
         # Pulls all the values from a field in a table into a python list object
         def GetValues(table, field, float="n"):
             #inList = []
@@ -965,7 +952,9 @@ class DasymetricCalculations(object):
                 whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(popWorkingTable,"REP_CAT") + " <> ''"
             aPopWorkTableView = "aPopWorkTableView"
             arcpy.MakeTableView_management(popWorkingTable, aPopWorkTableView, whereClause)
-            ancDensTable, ancDensTableName = NameCheck("SamplingSummaryTable",tableSuffix)
+            #ancDensTable, ancDensTableName = NameCheck("SamplingSummaryTable",tableSuffix)
+            ancDensTable = arcpy.CreateUniqueName("SamplingSummaryTable", outWorkspace)
+            ancDensTableName = ancDensTable
             if arcpy.GetCount_management(aPopWorkTableView):
                 arcpy.Statistics_analysis(aPopWorkTableView, ancDensTable, popCountField + " SUM; " + popAreaField + " SUM; CELL_DENS MEAN; CELL_DENS MIN; CELL_DENS MAX; CELL_DENS STD; POP_AREA SUM; POP_DENS MEAN; POP_DENS MIN; POP_DENS MAX; POP_DENS STD;" , "REP_CAT")
                 arcpy.AddField_management(ancDensTable, "SAMPLDENS", "DOUBLE")
@@ -975,7 +964,7 @@ class DasymetricCalculations(object):
                 # Add a field that designates these classes as "Sampled"
                 arcpy.AddField_management(ancDensTable, "METHOD", "TEXT", "", "", "7")
                 #arcpy.CalculateField_management(ancDensTable, "METHOD", '"Sampled"', 'PYTHON')
-                calculateStaticValue(ancDensTable,"METHOD",'"Sampled"')
+                calculateStaticValue(ancDensTable,"METHOD","Sampled")
                 arcpy.AddField_management(ancDensTable, "CLASSDENS", "DOUBLE")    
                 arcpy.CalculateField_management(ancDensTable, "CLASSDENS", "!SAMPLDENS!", 'PYTHON')
                 # For all sampled classes that are not preset, calculate a population estimate for every intersected polygon by joining the ancDensTable and multiplying the class density by the polygon area.
@@ -1035,6 +1024,7 @@ class DasymetricCalculations(object):
                         row[0] = row[1]
                         cursor.updateRow(row)
                 RemoveNulls(outWorkTableView,"REM_AREA")
+                '''
                 remainderTable, remainderTableName = NameCheck("remainderTable", tableSuffix)
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION") # To clear previous selection set
                 arcpy.Frequency_analysis(outWorkTableView, remainderTable, popIDField + ";POP_COUNT", "POP_EST;REM_AREA")
@@ -1049,12 +1039,15 @@ class DasymetricCalculations(object):
                 arcpy.RemoveJoin_management(outWorkTableView, remainderTableName)
                 arcpy.Delete_management(remainderTable)
                 '''
-                Collection.counter isn't going to work for summing multiple fields at once - need to write my own function for this.
+                '''Collection.counter isn't going to work for summing multiple fields at once - need to write my own function for this.
                 use dictionary:
                 if d1.has_key('a'):
                     d1['a'] = tuple(map(sum,zip(d1['a']),(3,7)))
                 else:
                     d1['a'] = (3,7)
+                    
+                    
+                Review this - would it be less cryptic/convoluted and more transparent if there were simply two parallel counters?
                 '''
                 popDiffDict = {}
                 with arcpy.da.SearchCursor(outWorkTable, [popIDField, "POP_COUNT", "POP_EST", "REM_AREA"]) as cursor:
@@ -1064,6 +1057,7 @@ class DasymetricCalculations(object):
                         # this summarizes populated area by population unit into a python dictionary
                         if popDiffDict.has_key(key):
                             # if there is an existing value for this key, sum the values of the associated fields
+                            # so that we end up with a cumulative total of estimated population and remaining area for this population unit
                             popDiffDict[key] = tuple(map(sum,zip(popDiffDict[key]),pvalues))
                         else:
                             popDiffDict[key] = pvalues
