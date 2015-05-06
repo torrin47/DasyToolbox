@@ -16,7 +16,7 @@ import arcpy, os, sys, traceback
 ##Global helper functions used by all classes
 
 # Helper function for displaying messages
-def AddPrintMessage(msg, severity):
+def AddPrintMessage(msg, severity = 0):
     print(msg)
     if severity == 0: arcpy.AddMessage(msg)
     elif severity == 1: arcpy.AddWarning(msg)
@@ -954,7 +954,7 @@ class DasymetricCalculations(object):
             arcpy.MakeTableView_management(popWorkingTable, aPopWorkTableView, whereClause)
             #ancDensTable, ancDensTableName = NameCheck("SamplingSummaryTable",tableSuffix)
             ancDensTable = arcpy.CreateUniqueName("SamplingSummaryTable", outWorkspace)
-            ancDensTableName = ancDensTable
+            ancDensTableName = os.path.split(ancDensTable)[1]
             if arcpy.GetCount_management(aPopWorkTableView):
                 arcpy.Statistics_analysis(aPopWorkTableView, ancDensTable, popCountField + " SUM; " + popAreaField + " SUM; CELL_DENS MEAN; CELL_DENS MIN; CELL_DENS MAX; CELL_DENS STD; POP_AREA SUM; POP_DENS MEAN; POP_DENS MIN; POP_DENS MAX; POP_DENS STD;" , "REP_CAT")
                 arcpy.AddField_management(ancDensTable, "SAMPLDENS", "DOUBLE")
@@ -976,7 +976,8 @@ class DasymetricCalculations(object):
                 else:
                     arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION")
                 #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "[" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "] * [" + joinedFieldName(outWorkTableView,ancDensTableName,"CLASSDENS") + "]")
-                arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(outWorkTableView,ancDensTableName,"CLASSDENS") + "!", 'PYTHON')
+                expression = "!" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(outWorkTableView,ancDensTableName,"CLASSDENS") + "!"
+                arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), expression, 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, ancDensTableName)
             else:
                 # CreateTable_management (out_path, out_name, template, config_keyword)
@@ -985,7 +986,7 @@ class DasymetricCalculations(object):
                 arcpy.AddField_management(ancDensTable, "SAMPLDENS", "DOUBLE")
                 arcpy.AddField_management(ancDensTable, "METHOD", "TEXT", "", "", "7")
                 arcpy.AddField_management(ancDensTable, "CLASSDENS", "DOUBLE")
-        
+                
             if presetTable and presetTable != "#":
                 AddPrintMessage("Adding preset values to the summary table...",0)
                 # Now, for the preset classes, calculate a population estimate for every intersected polygon by joining the Preset Table and multiplying the preset density by the polygon area
@@ -1039,33 +1040,22 @@ class DasymetricCalculations(object):
                 arcpy.RemoveJoin_management(outWorkTableView, remainderTableName)
                 arcpy.Delete_management(remainderTable)
                 '''
-                '''Collection.counter isn't going to work for summing multiple fields at once - need to write my own function for this.
-                use dictionary:
-                if d1.has_key('a'):
-                    d1['a'] = tuple(map(sum,zip(d1['a']),(3,7)))
-                else:
-                    d1['a'] = (3,7)
-                    
-                    
-                Review this - would it be less cryptic/convoluted and more transparent if there were simply two parallel counters?
-                '''
                 popDiffDict = {}
                 with arcpy.da.SearchCursor(outWorkTable, [popIDField, "POP_COUNT", "POP_EST", "REM_AREA"]) as cursor:
                     for row in cursor:
                         pkey = (row[0],row[1])
                         pvalues = (row[2],row[3])
                         # this summarizes populated area by population unit into a python dictionary
-                        if popDiffDict.has_key(key):
+                        if popDiffDict.has_key(pkey):
                             # if there is an existing value for this key, sum the values of the associated fields
                             # so that we end up with a cumulative total of estimated population and remaining area for this population unit
-                            popDiffDict[key] = tuple(map(sum,zip(popDiffDict[key]),pvalues))
+                            popDiffDict[pkey] = tuple(map(sum,zip(popDiffDict[pkey],pvalues)))
                         else:
-                            popDiffDict[key] = pvalues
-                
+                            popDiffDict[pkey] = pvalues
                 # Select only those units whose population difference is greater than zero with nonzero remaining area
                 # remainderTable = popUnitID: (PopulationDifference (POP_COUNT - POP_EST),Remainder Area (REM_AREA)
                 remainderTable = {key[0]:(key[1] - value[0],value[1]) for key, value in popDiffDict.items() if key[1] - value[0]>0 and value[1] != 0}
-                
+                del popDiffDict
                 with arcpy.da.UpdateCursor(outWorkTable, [popIDField,"POP_EST","REM_AREA"]) as cursor:
                         for row in cursor:
                             # So many references by index, gets a little confusing.  If this is a population unit of concern:
@@ -1073,6 +1063,7 @@ class DasymetricCalculations(object):
                                 # The Population Estimate value = the popuation difference from the remainder table * the remaining area of the intersected unit
                                 row[1] = remainderTable[row[0]][0] * row[2] / remainderTable[row[0]][1]
                                 cursor.updateRow(row)
+                                
                 # Calculate population density values for these unsampled classes
                 # - for every unsampled ancillary class, sum total area and total population estimated using intelligent areal weighting.  
                 # Calculate class representative density.
