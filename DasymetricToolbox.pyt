@@ -1063,12 +1063,13 @@ class DasymetricCalculations(object):
                                 # The Population Estimate value = the popuation difference from the remainder table * the remaining area of the intersected unit
                                 row[1] = remainderTable[row[0]][0] * row[2] / remainderTable[row[0]][1]
                                 cursor.updateRow(row)
-                                
+                del remainderTable                
                 # Calculate population density values for these unsampled classes
                 # - for every unsampled ancillary class, sum total area and total population estimated using intelligent areal weighting.  
                 # Calculate class representative density.
                 whereClause = arcpy.AddFieldDelimiters(outWorkTableView,ancCatName) + " IN (" + ", ".join(unSampledList) + ")"
                 whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,"POP_COUNT") + " <> 0"
+                '''
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
                 ancDensTable2, ancDensTable2Name = NameCheck("ancDensTable2",tableSuffix)
                 arcpy.Frequency_analysis(outWorkTableView, ancDensTable2, ancCatName, "POP_EST;POP_AREA")
@@ -1082,16 +1083,36 @@ class DasymetricCalculations(object):
                 #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "[" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "] * [" + joinedFieldName(outWorkTableView,ancDensTable2Name,"CLASSDENS") + "]")
                 arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(outWorkTableView,ancDensTable2Name,"CLASSDENS") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, ancDensTable2Name)
-        
+                '''
+                ancDensDict = {}
+                with arcpy.da.SearchCursor(outWorkTable, [ancCatName, "POP_EST", "POP_AREA"], whereClause) as cursor:
+                    for row in cursor:
+                        pkey = row[0]
+                        pvalues = (row[1],row[2])
+                        # this summarizes populated area and estimated population density by ancillary class into a python dictionary
+                        if ancDensDict.has_key(pkey):
+                            # if there is an existing value for this key, sum the values of the associated fields
+                            # so that we end up with a cumulative total of populated area and estimated population density for this ancillary class
+                            ancDensDict[pkey] = tuple(map(sum,zip(ancDensDict[pkey],pvalues)))
+                        else:
+                            ancDensDict[pkey] = pvalues
+                # classDensDict = ancillaryClass: ancillary class density if populated area is greater than zero
+                classDensDict = {key:value[0]/value[1] for key, value in ancDensDict.items() if value[1] > 0}
+                del ancDensDict
+                with arcpy.da.UpdateCursor(outWorkTable, [ancCatName,"POP_EST", dasyAreaField]) as cursor:
+                        for row in cursor:
+                            # If this is an ancillary class of concern:
+                            if classDensDict.has_key(row[0]):
+                                # The new Population Estimate value = the polygon area * the ancillary class estimate
+                                row[1] = row[2] * classDensDict[row[0]]
+                                cursor.updateRow(row)
+
                 # - Lastly, add these IAW values to the ancDensTable
-                iawValList = GetValues(ancDensTable2, "CLASSDENS", "y")
-                unSampledList = GetValues(ancDensTable2, ancCatName)
                 cursorFields = ['CLASSDENS','METHOD','REP_CAT']
                 cursor = arcpy.da.InsertCursor(ancDensTable,cursorFields)
-                for iawVal,unSampledVal in zip(iawValList,unSampledList):
-                    cursor.insertRow([iawVal,"IAW",unSampledVal])
-                del cursor
-                arcpy.Delete_management(ancDensTable2)
+                for ancCat, classDens in classDensDict.items():
+                    cursor.insertRow([ancCat,"IAW",classDens])
+                del cursor, classDensDict
             # End of intelligent areal weighting
              
             # Perform final calculations to ensure pycnophylactic integrity
@@ -1099,6 +1120,7 @@ class DasymetricCalculations(object):
             # For each population source unit, sum the population estimates,
             # - which do not necessarily sum to the actual population of the source,
             # - and use the ratio of the estimates to the estimated total to distribute the actual total.
+            '''
             popEstSumTable, popEstSumTableName = NameCheck("popEstSumTable", tableSuffix)
             arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION") # To clear previous selection set
             arcpy.Frequency_analysis(outWorkTableView, popEstSumTable, popIDField, "POP_EST")
@@ -1119,10 +1141,29 @@ class DasymetricCalculations(object):
             arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
             # [NEWDENSITY] = [NEW_POP] / dasyAreaField]")
             arcpy.CalculateField_management(outWorkTableView, "NEWDENSITY", "!NEW_POP! / !" + dasyAreaField + "!", 'PYTHON')
+            '''
+            pycCounter = Counter()
+            with arcpy.da.SearchCursor(outWorkTable, [popIDField, "POP_EST"]) as cursor:
+                for row in cursor:
+                    # this summarizes populated area by population unit into a python dictionary
+                    pycCounter.update({row[0]:row[1]})
+            # Filter non-zero estimated population
+            pycCounter = {popID:popEst for popID, popEst in pycCounter.items() if popEst != 0}
+            with arcpy.da.UpdateCursor(outWorkTable, [popIDField, "TOTALFRACT", "POP_EST", "POP_COUNT", "NEW_POP", dasyAreaField, "NEWDENSITY"]) as cursor:
+                for row in cursor:
+                    if pycCounter.has_key(row[0]):
+                        totalFraction = row[2] / pycCounter[row[0]]
+                        row[1] = totalFraction
+                        newPop = row[3] * totalFraction
+                        row[4] = newPop
+                        if row[5] != 0:
+                            newDensity = newPop / row[5]
+                            row[6] = newDensity 
+                        cursor.updateRow(row)
             
             # Lastly create an official output statistics table
             AddPrintMessage("Creating a final summary table",0)
-            finalSummaryTable, finalSummaryTableName = NameCheck("FinalSummaryTable",tableSuffix)
+            finalSummaryTable = arcpy.CreateUniqueName("FinalSummaryTable", outWorkspace)
             arcpy.Statistics_analysis(outWorkTable, finalSummaryTable, "NEW_POP SUM; NEWDENSITY MEAN; NEWDENSITY MIN; NEWDENSITY MAX; NEWDENSITY STD", ancCatName)
            
         # Geoprocessing Errors will be caught here
