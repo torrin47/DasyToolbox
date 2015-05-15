@@ -366,29 +366,13 @@ class CombinePopAnc(object):
             dasyRaster = parameters[2].valueAsText # The name and full path of the output dasymetric raster that will be created. This raster will have a single value for each unique combination of population units and ancillary classes. When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for a GRID file format.
             dasyWorkTable = parameters[3].valueAsText # A stand-alone working table will be created that will be used for subsequent dasymetric calculations. Performing calculations on a standalone table is more predictable than trying to perform calculations on a raster value attribute table. 
         
-            # Derived arguments...
-            inputRasters = [popRaster,ancRaster]
-        
-            # Save current environment variables so they can be reset after the process
-            #tempMask = arcpy.env.mask
-            arcpy.env.mask = popRaster
-        
-            arcpy.env.workspace = GetPath(dasyRaster)
-        
             # Process: Combine...
             AddPrintMessage("Combining rasters...", 0)
-            outCombine = arcpy.sa.Combine(inputRasters)
+            outCombine = arcpy.sa.Combine([popRaster,ancRaster])
             # At ArcGIS 10, the combine tool crashed when run in a python script (bug NIM064542), so this script used the Combinatorial Or tool instead, which is much slower. For 10.2 and above, combine is recommended.
             #outCombine = arcpy.sa.CombinatorialOr(popRaster,ancRaster)
             AddPrintMessage("Saving combined rasters...", 0)
             outCombine.save(dasyRaster)
-            
-            ##Build attribute table for single band raster dataset (not always built automatically)
-            AddPrintMessage("Building raster value attribute table...", 0)
-            arcpy.BuildRasterAttributeTable_management(dasyRaster, "Overwrite")
-            
-            # Return environment variables to previous values
-            #arcpy.env.mask = tempMask
             
             workTablePath = GetPath(dasyWorkTable)
             dasyWorkTable = os.path.join(workTablePath,GetName(dasyWorkTable)) # In case the folder was a grid.
@@ -684,12 +668,6 @@ class DasymetricCalculations(object):
         
          # Because NULL values can be problematic in queries and field calculations, replaces all NULLS with zeroess.   
         def RemoveNulls(table,field): 
-            #===================================================================
-            # Legacy Code - before arcpy.da data access module
-            # arcpy.SelectLayerByAttribute_management(tableView, "NEW_SELECTION", arcpy.AddFieldDelimiters(tableView,field) + " IS NULL")
-            # if arcpy.GetCount_management(tableView):
-            #     arcpy.CalculateField_management(tableView, field, "0", 'PYTHON')
-            #===================================================================
             whereClause = arcpy.AddFieldDelimiters(table,field) + " IS NULL"
             calculateStaticValue(table,field,"0",whereClause)                
         
@@ -705,10 +683,8 @@ class DasymetricCalculations(object):
             if (len(fields) > 0):
                 field = fields[0]
                 if field.type == 'String':
-                    #arcpy.CalculateField_management(tableName,fieldName, "''", 'PYTHON')
                     calculateStaticValue(tableName,fieldName,"''")
                 else:
-                    #arcpy.CalculateField_management(tableName,fieldName, "0", 'PYTHON')
                     calculateStaticValue(tableName,fieldName,"0")
         
         # Convert output from field property into expected input for field creation.

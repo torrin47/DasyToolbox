@@ -365,30 +365,14 @@ class CombinePopAnc(object):
             ancRaster = parameters[1].valueAsText # The ancillary raster dataset to be used to redistribute population. This should be the same input as the ancillary dataset used in the Population Features to Raster tool. Land-use or land-cover are the most frequently used ancillary datasets, but any dataset that has classes of relatively homogenous population density could be used here. 
             dasyRaster = parameters[2].valueAsText # The name and full path of the output dasymetric raster that will be created. This raster will have a single value for each unique combination of population units and ancillary classes. When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for a GRID file format.
             dasyWorkTable = parameters[3].valueAsText # A stand-alone working table will be created that will be used for subsequent dasymetric calculations. Performing calculations on a standalone table is more predictable than trying to perform calculations on a raster value attribute table. 
-        
-            # Derived arguments...
-            inputRasters = [popRaster,ancRaster]
-        
-            # Save current environment variables so they can be reset after the process
-            #tempMask = arcpy.env.mask
-            arcpy.env.mask = popRaster
-        
-            arcpy.env.workspace = GetPath(dasyRaster)
-        
+
             # Process: Combine...
             AddPrintMessage("Combining rasters...", 0)
-            outCombine = arcpy.sa.Combine(inputRasters)
+            outCombine = arcpy.sa.Combine([popRaster,ancRaster])
             # At ArcGIS 10, the combine tool crashed when run in a python script (bug NIM064542), so this script used the Combinatorial Or tool instead, which is much slower. For 10.2 and above, combine is recommended.
             #outCombine = arcpy.sa.CombinatorialOr(popRaster,ancRaster)
             AddPrintMessage("Saving combined rasters...", 0)
             outCombine.save(dasyRaster)
-            
-            ##Build attribute table for single band raster dataset (not always built automatically)
-            AddPrintMessage("Building raster value attribute table...", 0)
-            arcpy.BuildRasterAttributeTable_management(dasyRaster, "Overwrite")
-            
-            # Return environment variables to previous values
-            #arcpy.env.mask = tempMask
             
             workTablePath = GetPath(dasyWorkTable)
             dasyWorkTable = os.path.join(workTablePath,GetName(dasyWorkTable)) # In case the folder was a grid.
@@ -1065,11 +1049,17 @@ class DasymetricCalculations(object):
                     str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
             AddPrintMessage(pymsg, 2)
         
-
 class CreateFinalRaster(object):
-    """C:\sync\DasyToolbox\Dasymetric_Toolbox.tbx\CreateFinalRaster"""
+    """
+    # ---------------------------------------------------------------------------
+    # CreateFinalRaster.py
+    # Part 5 of the Intelligent Areal Weighting Dasymetric Mapping Toolset
+    # Usage: CreateFinalRaster <dasyRaster> <dasyWorkTable> <outputRaster> 
+    # ---------------------------------------------------------------------------
+    """
     def __init__(self):
         self.label = u'Step 5 - Create Final Dasymetric Raster'
+        self.description = "This tool creates a floating-point population density raster by joining a table with dasymetrically calculated population density with the combined population and ancillary raster created in step 2."
         self.canRunInBackground = False
     def getParameterInfo(self):
         # Dasymetric_Raster
@@ -1098,7 +1088,14 @@ class CreateFinalRaster(object):
 
         return [param_1, param_2, param_3]
     def isLicensed(self):
-        return True
+        """Allow the tool to execute, only if the Spatial Analyst extension 
+        is available."""
+        try:
+            if arcpy.CheckExtension("spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True  # tool can be executed
     def updateParameters(self, parameters):
         validator = getattr(self, 'ToolValidator', None)
         if validator:
@@ -1108,85 +1105,58 @@ class CreateFinalRaster(object):
         if validator:
              return validator(parameters).updateMessages()
     def execute(self, parameters, messages):
-        with script_run_as(u'C:\\sync\\DasyToolbox\\CreateFinalRaster.py'):
-            # ---------------------------------------------------------------------------
-            # CreateFinalRaster.py
-            # Part 5 of the Intelligent Areal Weighting Dasymetric Mapping Toolset
-            # Usage: CreateFinalRaster <dasyRaster> <dasyWorkTable> <outputRaster> 
-            # ---------------------------------------------------------------------------
+        try:
+            # Check out any necessary licenses
+            if arcpy.CheckExtension("spatial") == "Available":
+                arcpy.CheckOutExtension("spatial")
+            else:
+                AddPrintMessage("Spatial Analyst license is unavailable", 2)
             
-            # Import system modules
-            import sys, string, os, arcpy, traceback
+            # Enable Overwriting
+            arcpy.env.overwriteOutput = True
             
-            # Helper function for displaying messages
-            def AddPrintMessage(msg, severity):
-                print (msg)
-                if severity == 0: messages.AddMessage(msg)
-                elif severity == 1: messages.AddWarningMessage(msg)
-                elif severity == 2: messages.AddErrorMessage(msg)
+            # Script arguments...
+            dasyRaster = parameters[0].valueAsText # The combined population and ancillary raster created as the output from step 2.
+            dasyWorkTable = parameters[1].valueAsText # The dasymetric working table created in step 2 and populated in step 4. This script will use the final column from that table for the output density values. 
+            outputRaster = parameters[2].valueAsText # Please enter the desired output raster with the full path. When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for an ESRI GRID file format.
             
-            # Checks for existing files in the directory with the same name 
-            # and adds an integer to the end of non-unique filenames 
-            def NameCheck(name,tableSuffix):
-                j,okName = 1,""
-                while not okName:
-                    tList = arcpy.ListDatasets(name + '*')
-                    if tList:
-                        name = name[:-2] + "_" + str(j)
-                    else:
-                        okName = name
-                    j = j + 1
-                return okName + tableSuffix, okName
-                
-            try:
+            outWorkspace = os.path.dirname(str(outputRaster))
+            arcpy.env.workspace = outWorkspace
             
-                # Check out any necessary licenses
-                if arcpy.CheckExtension("spatial") == "Available":
-                    arcpy.CheckOutExtension("spatial")
-                else:
-                    AddPrintMessage("Spatial Analyst license is unavailable", 2)
-                
-                # Script arguments...
-                dasyRaster = parameters[0].valueAsText # The combined population and ancillary raster created as the output from step 2.
-                dasyWorkTable = parameters[1].valueAsText # The dasymetric working table created in step 2 and populated in step 4. This script will use the final column from that table for the output density values. 
-                outputRaster = parameters[2].valueAsText # Please enter the desired output raster with the full path. When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for an ESRI GRID file format.
-                
-                arcpy.env.workspace = os.path.dirname(str(outputRaster))
-                
-                # Make the raster layer and add the join
-                arcpy.MakeRasterLayer_management(dasyRaster, "DRL")
-                arcpy.AddJoin_management("DRL", "Value", dasyWorkTable, "Value", "KEEP_COMMON")    
-                
-                # Due to bug NIM066814 we can't use the lookup tool on the joined table, so we have to copy the joined raster.
-                joinedRaster = arcpy.CopyRaster_management("DRL", NameCheck("dasyoutrast",'')[0])
-                
-                lookupRaster = arcpy.sa.Lookup(joinedRaster, "NEWDENSITY") 
-                
-                lookupRaster.save(outputRaster)
-                
-                # Clean up the in-memory raster layer and the intermediate joined raster
-                arcpy.Delete_management("DRL")
-                arcpy.Delete_management("dasyoutrast")
-                
-            # Geoprocessing Errors will be caught here
-            except Exception as e:
-                print (e.message)
-                messages.AddErrorMessage(e.message)
+            # Make the raster layer and add the join
+            arcpy.MakeRasterLayer_management(dasyRaster, "DRL")
+            arcpy.AddJoin_management("DRL", "Value", dasyWorkTable, "Value", "KEEP_COMMON")    
             
-            # other errors caught here
-            except:
-                # Cycle through Geoprocessing tool specific errors
-                for msg in range(0, arcpy.GetMessageCount()):
-                    if arcpy.GetSeverity(msg) == 2:
-                        arcpy.AddReturnMessage(msg)
-                        
-                # Return Python specific errors
-                tb = sys.exc_info()[2]
-                tbinfo = traceback.format_tb(tb)[0]
-                pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-                        str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-                AddPrintMessage(pymsg, 2)
+            # Due to bug NIM066814 we can't use the lookup tool on the joined table, so we have to copy the joined raster.
+            dasyoutrast = arcpy.CreateUniqueName("dasyoutrast", outWorkspace)
+            joinedRaster = arcpy.CopyRaster_management("DRL", dasyoutrast)
             
+            lookupRaster = arcpy.sa.Lookup(joinedRaster, "NEWDENSITY") 
+            
+            lookupRaster.save(outputRaster)
+            
+            # Clean up the in-memory raster layer and the intermediate joined raster
+            arcpy.Delete_management("DRL")
+            arcpy.Delete_management(dasyoutrast)
+            
+        # Geoprocessing Errors will be caught here
+        except Exception as e:
+            print (e.message)
+            messages.AddErrorMessage(e.message)
+        
+        # other errors caught here
+        except:
+            # Cycle through Geoprocessing tool specific errors
+            for msg in range(0, arcpy.GetMessageCount()):
+                if arcpy.GetSeverity(msg) == 2:
+                    arcpy.AddReturnMessage(msg)
+                    
+            # Return Python specific errors
+            tb = sys.exc_info()[2]
+            tbinfo = traceback.format_tb(tb)[0]
+            pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+                    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            AddPrintMessage(pymsg, 2)           
 
 class Model(object):
     """C:\sync\DasyToolbox\Dasymetric_Toolbox.tbx\Model"""
