@@ -1,2 +1,68 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<metadata xml:lang="en"><Esri><CreaDate>20150327</CreaDate><CreaTime>19270100</CreaTime><ArcGISFormat>1.0</ArcGISFormat><ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle><SyncOnce>TRUE</SyncOnce></Esri></metadata>
+<metadata xml:lang="en"><Esri><CreaDate>20150327</CreaDate><CreaTime>19270100</CreaTime><ArcGISFormat>1.0</ArcGISFormat><ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle><SyncOnce>TRUE</SyncOnce></Esri>
+	<tool name="CombinePopAnc" displayname="Step 2 - Combine Population and Ancillary Rasters" toolboxalias="" xmlns="">
+		<summary>This tool combines a raster of population enumeration units with an ancillary dataset to create an output raster with values that correspond to unique combinations of population units and ancillary classes. A standalone attribute table is exported from the raster attribute table that will be used to use intelligent dasymetric mapping to redistribute population within each source unit according to the ancillary classes.</summary>
+		<arcToolboxHelpPath>c:\program files (x86)\arcgis\desktop10.3\Help\gp</arcToolboxHelpPath>
+		<parameters>
+			<param name="Population_Raster" displayname="Population Raster" type="Required" direction="Input" expression="Population_Raster" datatype="Raster Dataset">
+				<commandReference>
+					<para>A population raster dataset.  This raster should have population unit IDs as the "value" field, and an attribute table that contains population counts for the associated population units.  It is recommended that you use population raster created by the "Population Features to Raster" tool in this toolbox.  </para>
+				</commandReference>
+				<dialogReference>
+					<para>A population raster dataset.  This raster should have population unit IDs as the "value" field, and an attribute table that contains population counts for the associated population units.  It is recommended that you use population raster created by the "Population Features to Raster" tool in this toolbox.</para>
+				</dialogReference>
+			</param>
+			<param name="Ancillary_Raster" displayname="Ancillary Raster" type="Required" direction="Input" expression="Ancillary_Raster" datatype="Raster Dataset">
+				<commandReference>
+					<para>The ancillary raster dataset to be used to redistribute population.  This should be the same input as the ancillary dataset used in the Population Features to Raster tool.  Land-use or land-cover are the most frequently used ancillary datasets, but any dataset that has classes of relatively homogenous population density could be used here.  </para>
+				</commandReference>
+				<dialogReference>
+					<para>The ancillary raster dataset to be used to redistribute population.  This should be the same input as the ancillary dataset used in the Population Features to Raster tool.  Land-use or land-cover are the most frequently used ancillary datasets, but any dataset that has classes of relatively homogenous population density could be used here.  </para>
+				</dialogReference>
+			</param>
+			<param name="Dasymetric_Raster" displayname="Dasymetric Raster" type="Required" direction="Output" expression="Dasymetric_Raster" datatype="Raster Dataset">
+				<commandReference>
+					<para>The name and full path of the output dasymetric raster that will be created.  This raster will have a single value for each unique combination of population units and ancillary classes.</para>
+					<para>When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for a GRID file format.</para>
+				</commandReference>
+				<dialogReference>
+					<para>The name and full path of the output dasymetric raster that will be created.  This raster will have a single value for each unique combination of population units and ancillary classes.</para>
+					<para>When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for a GRID file format.</para>
+				</dialogReference>
+			</param>
+			<param name="Dasymetric_Working_Table" displayname="Dasymetric Working Table" type="Required" direction="Output" expression="Dasymetric_Working_Table" datatype="Table">
+				<commandReference>
+					<para>A stand-alone working table will be created that will be used for subsequent dasymetric calculations.  Performing calculations on a standalone table is more predictable than trying to perform calculations on a raster value attribute table.  </para>
+				</commandReference>
+				<dialogReference>
+					<para>A stand-alone working table will be created that will be used for subsequent dasymetric calculations.  Performing calculations on a standalone table is more predictable than trying to perform calculations on a raster value attribute table.  </para>
+				</dialogReference>
+			</param>
+		</parameters>
+	</tool>
+	<dataIdInfo>
+		<idCitation>
+			<resTitle>Step 2 - Combine Population and Ancillary Rasters</resTitle>
+			<citRespParty>
+				<rpIndName>Torrin Hultgren</rpIndName>
+				<rpOrgName>CSC/U.S. E.P.A.</rpOrgName>
+				<rpPosName>GIS Analyst</rpPosName>
+				<role>
+					<RoleCd>010</RoleCd>
+				</role>
+			</citRespParty>
+		</idCitation>
+		<idAbs>This tool combines a raster of population enumeration units with an ancillary dataset to create an output raster with values that correspond to unique combinations of population units and ancillary classes. A standalone attribute table is exported from the raster attribute table that will be used to use intelligent dasymetric mapping to redistribute population within each source unit according to the ancillary classes.</idAbs>
+		<resConst>
+			<Consts>
+				<useLimit>The author of this script assumes no liability for the quality nor the appropriate application of this code.  Please make sure you fully understand the process before attempting to draw conclusions from the results.</useLimit>
+			</Consts>
+		</resConst>
+	</dataIdInfo>
+	<distInfo>
+		<distributor>
+			<distorFormat>
+				<formatName>ArcToolbox Tool</formatName>
+			</distorFormat>
+		</distributor>
+	</distInfo></metadata>

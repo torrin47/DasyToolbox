@@ -1,0 +1,90 @@
+mp 2.9.3 - Peter N. Schweitzer (U.S. Geological Survey)
+Warning (line 2): Unknown extension element ignored: Esri
+Warning (line 2): Unknown extension element ignored: MetaID
+Warning (line 2): Discarding text found in unknown extension MetaID
+Warning (line 2): Unknown extension element ignored: CreaDate
+Warning (line 2): Discarding text found in unknown extension CreaDate
+Warning (line 2): Unknown extension element ignored: CreaTime
+Warning (line 2): Discarding text found in unknown extension CreaTime
+Warning (line 2): Unknown extension element ignored: SyncOnce
+Warning (line 2): Discarding text found in unknown extension SyncOnce
+Warning (line 2): Unknown extension element ignored: ModDate
+Warning (line 2): Discarding text found in unknown extension ModDate
+Warning (line 2): Unknown extension element ignored: ModTime
+Warning (line 2): Discarding text found in unknown extension ModTime
+Warning (line 2): Unknown extension element ignored: summary
+Warning (line 2): Unknown extension element ignored: para
+Warning (line 2): Discarding text found in unknown extension para
+Warning (line 2): Unknown extension element ignored: arcToolboxHelpPath
+Warning (line 2): Discarding text found in unknown extension arcToolboxHelpPath
+Warning (line 2): Unknown extension element ignored: parameters
+Warning (line 2): Unknown extension element ignored: param
+Warning (line 2): Unknown extension element ignored: commandReference
+Warning (line 2): Unknown extension element ignored: para
+Warning (line 2): Discarding text found in unknown extension para
+Warning (line 2): Unknown extension element ignored: dialogReference
+Warning (line 2): Unknown extension element ignored: para
+Warning (line 2): Discarding text found in unknown extension para
+Warning (line 2): Unknown extension element ignored: param
+Warning (line 2): Unknown extension element ignored: commandReference
+Warning (line 2): Unknown extension element ignored: para
+Warning (line 2): Discarding text found in unknown extension para
+Warning (line 2): Unknown extension element ignored: dialogReference
+Warning (line 2): Unknown extension element ignored: para
+Warning (line 2): Discarding text found in unknown extension para
+Warning (line 2): Unknown extension element ignored: commandExample
+Warning (line 2): Unknown extension element ignored: toolIllust
+Warning (line 2): Unknown extension element ignored: usage
+Warning (line 2): Unknown extension element ignored: para
+Warning (line 2): Discarding text found in unknown extension para
+Warning (line 2): Unknown extension element ignored: bullet_item
+Warning (line 2): Discarding text found in unknown extension bullet_item
+Warning (line 2): Unknown extension element ignored: bullet_item
+Warning (line 2): Discarding text found in unknown extension bullet_item
+Warning (line 2): Unknown extension element ignored: para
+Warning (line 2): Discarding text found in unknown extension para
+Warning (line 2): Unknown extension element ignored: scriptExample
+Warning (line 2): Unknown extension element ignored: dataIdInfo
+Warning (line 2): Unknown extension element ignored: idCitation
+Warning (line 2): Unknown extension element ignored: resTitle
+Warning (line 2): Discarding text found in unknown extension resTitle
+Warning (line 2): Unknown extension element ignored: citRespParty
+Warning (line 2): Unknown extension element ignored: rpIndName
+Warning (line 2): Discarding text found in unknown extension rpIndName
+Warning (line 2): Unknown extension element ignored: rpOrgName
+Warning (line 2): Discarding text found in unknown extension rpOrgName
+Warning (line 2): Unknown extension element ignored: rpPosName
+Warning (line 2): Discarding text found in unknown extension rpPosName
+Warning (line 2): Unknown extension element ignored: role
+Warning (line 2): Unknown extension element ignored: RoleCd
+Warning (line 2): Discarding text found in unknown extension RoleCd
+Warning (line 2): Unknown extension element ignored: rpCntInfo
+Warning (line 2): Unknown extension element ignored: cntAddress
+Warning (line 2): Unknown extension element ignored: delPoint
+Warning (line 2): Unknown extension element ignored: adminArea
+Warning (line 2): Unknown extension element ignored: postCode
+Warning (line 2): Unknown extension element ignored: eMailAdd
+Warning (line 2): Unknown extension element ignored: cntPhone
+Warning (line 2): Unknown extension element ignored: voiceNum
+Warning (line 2): Unknown extension element ignored: faxNum
+Warning (line 2): Unknown extension element ignored: idAbs
+Warning (line 2): Discarding text found in unknown extension idAbs
+Warning (line 2): Unknown extension element ignored: resConst
+Warning (line 2): Unknown extension element ignored: Consts
+Warning (line 2): Unknown extension element ignored: useLimit
+Warning (line 2): Discarding text found in unknown extension useLimit
+Warning (line 2): Unknown extension element ignored: distInfo
+Warning (line 2): Unknown extension element ignored: distributor
+Warning (line 2): Unknown extension element ignored: distorFormat
+Warning (line 2): Unknown extension element ignored: formatName
+Warning (line 2): Discarding text found in unknown extension formatName
+Warning (line 2): Analytical_Tool is not expected in Metadata
+Error (line 2): City is not permitted in Metadata
+Error (line 2): Country is not permitted in Metadata
+Error (line 2): Identification_Information is required in Metadata
+Error (line 2): Metadata_Reference_Information is required in Metadata
+Error (line 2): Analytical_Tool_Description is required in Analytical_Tool
+Error (line 2): Tool_Access_Information is required in Analytical_Tool
+Warning (line 2): City does not have a value
+Warning (line 2): Country does not have a value
+8 errors: 2 misplaced, 4 missing, 2 empty

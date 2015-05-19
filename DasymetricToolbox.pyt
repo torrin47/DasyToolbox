@@ -648,22 +648,12 @@ class DasymetricCalculations(object):
         
         # Pulls all the values from a field in a table into a python list object
         def GetValues(table, field, float="n"):
-            #inList = []
             if table and table != "#":
                 fieldObj = arcpy.ListFields(table, field)[0]
-                '''  Legacy cursor code for performance comparison
-                rows = arcpy.SearchCursor(table)
-                row = rows.next()
-                while row:
-                    inList.append(row.getValue(field))
-                    row = rows.next()
-                ''' 
                 #Modern List Comprehension using data access module to do the same thing.
                 inList = [row[0] for row in arcpy.da.SearchCursor(table, field)]
-
                 if fieldObj.type != "String" and float != "y":  #Convert numeric class values to strings
                     inList = [str(int(val)) for val in inList]
-                rows, row, fieldList, fieldObj = None, None, None, None
             return inList
         
          # Because NULL values can be problematic in queries and field calculations, replaces all NULLS with zeroess.   
@@ -672,10 +662,15 @@ class DasymetricCalculations(object):
             calculateStaticValue(table,field,"0",whereClause)                
         
         def calculateStaticValue(table,field,value,whereClause=''):
-            with arcpy.da.UpdateCursor(table, [field], whereClause) as cursor:
+            cursor = arcpy.UpdateCursor(table, whereClause)
+            if value: 
                 for row in cursor:
-                    row[0] = value
-                    cursor.updateRow(row)     
+                    row.setValue(field, value)
+                    cursor.updateRow(row)  
+            else: #Set to null.
+                for row in cursor:
+                    row.setNull(field)
+                    cursor.updateRow(row)
         
         # The working tables are frequently reused, so it's necessary to reset fields to zeroes
         def ClearField(tableName,fieldName):
@@ -685,7 +680,7 @@ class DasymetricCalculations(object):
                 if field.type == 'String':
                     calculateStaticValue(tableName,fieldName,"''")
                 else:
-                    calculateStaticValue(tableName,fieldName,"0")
+                    calculateStaticValue(tableName,fieldName,False)
         
         # Convert output from field property into expected input for field creation.
         def FieldProps(tableName, fieldName):
@@ -758,8 +753,8 @@ class DasymetricCalculations(object):
             AddPrintMessage("Collecting unique ancillary categories...",0)
             # Use SearchCursor with list comprehension to return a
             # unique set of values in the specified field
-            ancCatValues = [row[0] for row in arcpy.da.SearchCursor(outWorkTable, ancCatName)]
-            inAncCatList = set(ancCatValues)
+            ancCatValues = GetValues(outWorkTable, ancCatName)
+            inAncCatList = [value for value in set(ancCatValues)]
             outAncCatList = inAncCatList
             ancCatFieldProps = FieldProps(outWorkTable,ancCatName)
             if ancCatFieldProps[0] == "TEXT": #Strings require special treatment in where clauses, integers are fine as is.
@@ -860,7 +855,7 @@ class DasymetricCalculations(object):
                     unSampledList.append(str(inAncCat))
                     AddPrintMessage("Class " + str(inAncCat) + " was not sufficiently sampled with only " + str(repCount) + " representative source units.",0)
             
-            # For each ancillary class (listif ed in the REP_CAT field) calculate sum of population and area and statistics
+            # For each ancillary class (listed in the REP_CAT field) calculate sum of population and area and statistics
             # - (count, mean, min, max, stddev) of densities further analysis
             AddPrintMessage("Calculating statistics for selected classes...",0)
             # Make sure there are representative classes.
@@ -923,7 +918,7 @@ class DasymetricCalculations(object):
                         del cursor
                 outPresetCatList, inPresetCatList = None, None
             RemoveNulls(outWorkTableView,"POP_EST")
-            
+                       
             # Intelligent areal weighting for unsampled classes
             # - for every source population unit sum the initial population estimates and compare
             # - the result to the actual count for the unit. Distribute any residual population 
@@ -937,7 +932,7 @@ class DasymetricCalculations(object):
                         cursor.updateRow(row)
                 RemoveNulls(outWorkTableView,"REM_AREA")
                 popDiffDict = {}
-                with arcpy.da.SearchCursor(outWorkTable, [popIDField, "POP_COUNT", "POP_EST", "REM_AREA"]) as cursor:
+                with arcpy.da.SearchCursor(outWorkTable, [popIDField, "POP_COUNT", "POP_EST", "REM_AREA"], unsampledWhereClause) as cursor:
                     for row in cursor:
                         pkey = (row[0],row[1])
                         pvalues = (row[2],row[3])
@@ -952,7 +947,7 @@ class DasymetricCalculations(object):
                 # remainderTable = popUnitID: (PopulationDifference (POP_COUNT - POP_EST),Remainder Area (REM_AREA)
                 remainderTable = {key[0]:(key[1] - value[0],value[1]) for key, value in popDiffDict.items() if key[1] - value[0]>0 and value[1] != 0}
                 del popDiffDict
-                with arcpy.da.UpdateCursor(outWorkTable, [popIDField,"POP_EST","REM_AREA"]) as cursor:
+                with arcpy.da.UpdateCursor(outWorkTable, [popIDField,"POP_EST","REM_AREA"], unsampledWhereClause) as cursor:
                         for row in cursor:
                             # So many references by index, gets a little confusing.  If this is a population unit of concern:
                             if remainderTable.has_key(row[0]):
@@ -963,8 +958,7 @@ class DasymetricCalculations(object):
                 # Calculate population density values for these unsampled classes
                 # - for every unsampled ancillary class, sum total area and total population estimated using intelligent areal weighting.  
                 # Calculate class representative density.
-                whereClause = arcpy.AddFieldDelimiters(outWorkTableView,ancCatName) + " IN (" + ", ".join(unSampledList) + ")"
-                whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,"POP_COUNT") + " <> 0"
+                whereClause = unsampledWhereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,"POP_COUNT") + " <> 0"
                 ancDensDict = {}
                 with arcpy.da.SearchCursor(outWorkTable, [ancCatName, "POP_EST", "POP_AREA"], whereClause) as cursor:
                     for row in cursor:
@@ -980,7 +974,7 @@ class DasymetricCalculations(object):
                 # classDensDict = ancillaryClass: ancillary class density if populated area is greater than zero
                 classDensDict = {key:value[0]/value[1] for key, value in ancDensDict.items() if value[1] > 0}
                 del ancDensDict
-                with arcpy.da.UpdateCursor(outWorkTable, [ancCatName,"POP_EST", dasyAreaField]) as cursor:
+                with arcpy.da.UpdateCursor(outWorkTable, [ancCatName,"POP_EST", dasyAreaField], unsampledWhereClause) as cursor:
                         for row in cursor:
                             # If this is an ancillary class of concern:
                             if classDensDict.has_key(row[0]):
@@ -992,7 +986,7 @@ class DasymetricCalculations(object):
                 cursorFields = ['CLASSDENS','METHOD','REP_CAT']
                 cursor = arcpy.da.InsertCursor(ancDensTable,cursorFields)
                 for ancCat, classDens in classDensDict.items():
-                    cursor.insertRow([ancCat,"IAW",classDens])
+                    cursor.insertRow([classDens,"IAW",ancCat])
                 del cursor, classDensDict
             # End of intelligent areal weighting
              
@@ -1002,13 +996,14 @@ class DasymetricCalculations(object):
             # - which do not necessarily sum to the actual population of the source,
             # - and use the ratio of the estimates to the estimated total to distribute the actual total.
             pycCounter = Counter()
-            with arcpy.da.SearchCursor(outWorkTable, [popIDField, "POP_EST"]) as cursor:
+            popAreawhereClause = arcpy.AddFieldDelimiters(outWorkTable,"POP_AREA") + " > 0"
+            with arcpy.da.SearchCursor(outWorkTable, [popIDField, "POP_EST"], popAreawhereClause) as cursor:
                 for row in cursor:
                     # this summarizes populated area by population unit into a python dictionary
                     pycCounter.update({row[0]:row[1]})
             # Filter non-zero estimated population
             pycCounter = {popID:popEst for popID, popEst in pycCounter.items() if popEst != 0}
-            with arcpy.da.UpdateCursor(outWorkTable, [popIDField, "TOTALFRACT", "POP_EST", "POP_COUNT", "NEW_POP", dasyAreaField, "NEWDENSITY"]) as cursor:
+            with arcpy.da.UpdateCursor(outWorkTable, [popIDField, "TOTALFRACT", "POP_EST", "POP_COUNT", "NEW_POP", dasyAreaField, "NEWDENSITY"], popAreawhereClause) as cursor:
                 for row in cursor:
                     if pycCounter.has_key(row[0]):
                         totalFraction = row[2] / pycCounter[row[0]]
@@ -1257,165 +1252,4 @@ class Model(object):
     def execute(self, parameters, messages):
         pass
 
-class Step2(object):
-    """C:\sync\DasyToolbox\Dasymetric_Toolbox.tbx\Step2"""
-    def __init__(self):
-        self.label = u'Step 2 - Alternate Combine Population and Ancillary Rasters'
-        self.canRunInBackground = False
-    def getParameterInfo(self):
-        # Input_rasters
-        param_1 = arcpy.Parameter()
-        param_1.name = u'Input_rasters'
-        param_1.displayName = u'Input rasters'
-        param_1.parameterType = 'Required'
-        param_1.direction = 'Input'
-        param_1.datatype = u'Composite Geodataset'
-        param_1.multiValue = True
-
-        # Dasymetric_Raster
-        param_2 = arcpy.Parameter()
-        param_2.name = u'Dasymetric_Raster'
-        param_2.displayName = u'Dasymetric Raster'
-        param_2.parameterType = 'Required'
-        param_2.direction = 'Output'
-        param_2.datatype = u'Raster Dataset'
-
-        # Dasymetric_Working_Table
-        param_3 = arcpy.Parameter()
-        param_3.name = u'Dasymetric_Working_Table'
-        param_3.displayName = u'Dasymetric Working Table'
-        param_3.parameterType = 'Required'
-        param_3.direction = 'Output'
-        param_3.datatype = u'Table'
-
-        return [param_1, param_2, param_3]
-    def isLicensed(self):
-        return True
-    def updateParameters(self, parameters):
-        validator = getattr(self, 'ToolValidator', None)
-        if validator:
-             return validator(parameters).updateParameters()
-    def updateMessages(self, parameters):
-        validator = getattr(self, 'ToolValidator', None)
-        if validator:
-             return validator(parameters).updateMessages()
-    def execute(self, parameters, messages):
-        pass
-
-class DasyWorkTable(object):
-    """---------------------------------------------------------------------------
-    # DasyWorkTable.py
-    # Helper script for Step 2 - Alternate Combine Population and Ancillary Rasters
-    # Used by Helper Tools/Create Dasymetric Working Table Helper script
-    # Not intended to be used as a standlone script - use CombinePopAnc.py instead.
-    # of the Intelligent Areal Weighting Dasymetric Mapping Toolset
-    # Usage: DasyWorkTable <dasyRaster> <dasyWorkTable>   
-    # ---------------------------------------------------------------------------
-    """
-    def __init__(self):
-        self.label = u'Create Dasymetric Working Table Helper Script'
-        self.canRunInBackground = False
-    def getParameterInfo(self):
-        # Dasymetric_Raster
-        param_1 = arcpy.Parameter(name = u'Dasymetric_Raster',
-                                  displayName = u'Dasymetric Raster',
-                                  parameterType = 'Required',
-                                  direction = 'Input',
-                                  datatype = u'Raster Dataset')
-
-        # Dasymetric_Working_Table
-        param_2 = arcpy.Parameter()
-        param_2.name = u'Dasymetric_Working_Table'
-        param_2.displayName = u'Dasymetric Working Table'
-        param_2.parameterType = 'Required'
-        param_2.direction = 'Output'
-        param_2.datatype = u'Table'
-
-        return [param_1, param_2]
-    def isLicensed(self):
-        return True
-    def updateParameters(self, parameters):
-        validator = getattr(self, 'ToolValidator', None)
-        if validator:
-             return validator(parameters).updateParameters()
-    def updateMessages(self, parameters):
-        validator = getattr(self, 'ToolValidator', None)
-        if validator:
-             return validator(parameters).updateMessages()
-    def execute(self, parameters, messages):
-        # Import system modules
-        import sys, string, os, arcpy, traceback
-        
-        # Helper function for displaying messages
-        def AddPrintMessage(msg, severity):
-            print (msg)
-            if severity == 0: messages.AddMessage(msg)
-            elif severity == 1: messages.AddWarningMessage(msg)
-            elif severity == 2: messages.AddErrorMessage(msg)
-        
-        def GetName(datasetName):
-            # Strips path from dataset
-            return os.path.basename(datasetName)
-        
-        def GetPath(datasetName):
-            # Returns path to dataset
-            # Because of bug #NIM050483 it's necessary to confirm that this path is not a GRID folder - the Geoprocessing Tool Validator sometimes autopopulates this.
-            datasetPath = os.path.dirname(datasetName)
-            desc = arcpy.Describe(datasetPath)
-            if (desc.datatype == 'RasterDataset'):
-              # Get parent folder, which is probably what the user intended.
-              datasetPath = os.path.dirname(datasetPath)
-            return datasetPath
-            
-        try:
-            # Script arguments...
-            dasyRaster = parameters[0].valueAsText # Raster dataset that is the combination of the population and ancillary datasets
-            dasyWorkTable = parameters[1].valueAsText # Output working table that will contain dasymetric population calculations
-        
-            # Derive appropriate tool parameters
-            workTablePath = GetPath(dasyWorkTable)
-            dasyWorkTable = os.path.join(workTablePath,GetName(dasyWorkTable)) # In case the folder was a grid.
-            
-            # Raster Value Attribute Tables (VATs) tend to be quirky for calculations, depending on the raster format.
-            # It is much more reliable and predictable to work with a standalone table.
-            AddPrintMessage("Creating the standalone working table...",0)
-            arcpy.TableToTable_conversion(dasyRaster, workTablePath, GetName(dasyWorkTable))
-            
-            AddPrintMessage("Adding new fields and creating indices...",0)
-            # Add necessary fields to the new table
-            for field in ["POP_COUNT","POP_AREA","POP_EST","REM_AREA","TOTALFRACT","NEW_POP","NEWDENSITY"]:
-                arcpy.AddField_management(dasyWorkTable, field, "DOUBLE")
-        
-            # Need to derive ID fields from input raster table...
-            fieldsList = arcpy.ListFields(dasyWorkTable)
-            popIDField = fieldsList[3].name # Should always be the fourth field
-            ancIDField = fieldsList[4].name # Should always be the fifth field
-        
-            # Create an index on both source unit ID and ancillary ID to speed processing
-            # This tool is only supported for shapefiles and file geodatabases
-            # not standalone dbf files or personal geodatabases
-            if os.path.dirname(dasyWorkTable)[-3:] == "gdb":
-                arcpy.AddIndex_management(dasyWorkTable, popIDField, "PopID_atx")
-                arcpy.AddIndex_management(dasyWorkTable, ancIDField, "AncID_atx")  
-            else:
-               AddPrintMessage("The Add Index tool does not support .dbf files.  Please manually add indices to the two fields in this table representing population and ancillary raster values by editing the properties of the table.",0) 
-            
-        # Geoprocessing Errors will be caught here
-        except Exception as e:
-            print (e.message)
-            messages.AddErrorMessage(e.message)
-        
-        # other errors caught here
-        except:
-            # Cycle through Geoprocessing tool specific errors
-            for msg in range(0, arcpy.GetMessageCount()):
-                if arcpy.GetSeverity(msg) == 2:
-                    arcpy.AddReturnMessage(msg)
-                    
-            # Return Python specific errors
-            tb = sys.exc_info()[2]
-            tbinfo = traceback.format_tb(tb)[0]
-            pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-                    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-            AddPrintMessage(pymsg, 2)
             

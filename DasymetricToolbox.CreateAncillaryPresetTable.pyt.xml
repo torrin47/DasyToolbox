@@ -1,2 +1,80 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<metadata xml:lang="en"><Esri><CreaDate>20150327</CreaDate><CreaTime>19270100</CreaTime><ArcGISFormat>1.0</ArcGISFormat><ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle><SyncOnce>TRUE</SyncOnce></Esri></metadata>
+<metadata xml:lang="en">
+	<Esri>
+		<CreaDate>20150327</CreaDate>
+		<CreaTime>19270100</CreaTime>
+		<ArcGISFormat>1.0</ArcGISFormat>
+		<ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle>
+		<SyncOnce>TRUE</SyncOnce>
+	</Esri>
+	<tool name="CreateAncillaryPresetTable" displayname="Step 3 - Create Ancillary Class Preset Table" toolboxalias="">
+		<summary>
+			<para>This tool assists with the creation of a standalone table that can contain preset density values for all the unique classes in the ancillary dataset.  For instance, if your ancillary dataset represents land cover, you may wish to preset the "Water" or "Glacier" classes to zero.  After the table is created, it will need to be manually populated with preset density values, and classes that should not be preset should be removed from the table.</para>
+		</summary>
+		<arcToolboxHelpPath>c:\program files (x86)\arcgis\desktop10.3\Help\gp</arcToolboxHelpPath>
+		<parameters>
+			<param name="Ancillary_Raster" displayname="Ancillary Raster" type="Required" direction="Input" expression="Ancillary_Raster" datatype="Raster Dataset">
+				<commandReference>
+					<para>The ancillary raster dataset.</para>
+				</commandReference>
+				<dialogReference>
+					<para>The ancillary raster dataset.</para>
+				</dialogReference>
+			</param>
+			<param name="Ancillary_Preset_Table" displayname="Ancillary Preset Table" type="Required" direction="Output" expression="Ancillary_Preset_Table" datatype="Table">
+				<commandReference>
+					<para>The output standalone table with full path that will be created.</para>
+				</commandReference>
+				<dialogReference>
+					<para>The output standalone table with full path that will be created.</para>
+				</dialogReference>
+			</param>
+		</parameters>
+		<usage>
+			<para>The output table will contain ancillary class values, the count of the number of pixels in that class, and a new column with floating-point type called PRESETDENS, which represents estimated people per pixel.  It is most common for this function to be used to specify zero population for certain classes (it's often a safe assumption that water or snowfield areas have zero population).  Setting such classes to zero helps refine density estimates in the intelligent dasymetric mapping.  You may finish preparing this table in at least two ways:</para>
+			<bullet_item>The first way to populate this table is to add it to ArcMap, start an edit session with the table as the target, and type density values into the PRESETDENS column, then save and stop the edit session.</bullet_item>
+			<bullet_item>If you choose a standalone .dbf file as the output for this tool, you may also use Microsoft Excel as an editor for the table.  If you choose this option, please be sure to only edit the one column, and save the document as dbf again. </bullet_item>
+			<para>You should remove rows from the table corresponding to those classes for which you do not wish to provide estimates (you would prefer their densities to be calculated via intelligent dasymetric mapping).</para>
+		</usage>
+	</tool>
+	<dataIdInfo>
+		<idCitation>
+			<resTitle>Step 3 - Create Ancillary Class Preset Table</resTitle>
+			<citRespParty>
+				<rpIndName>Torrin Hultgren</rpIndName>
+				<rpOrgName>CSC/U.S. E.P.A.</rpOrgName>
+				<rpPosName>GIS Analyst</rpPosName>
+				<role>
+					<RoleCd>010</RoleCd>
+				</role>
+				<rpCntInfo>
+					<cntAddress>
+						<delPoint/>
+						<city/>
+						<adminArea/>
+						<postCode/>
+						<country/>
+						<eMailAdd/>
+					</cntAddress>
+					<cntPhone>
+						<voiceNum/>
+						<faxNum/>
+					</cntPhone>
+				</rpCntInfo>
+			</citRespParty>
+		</idCitation>
+		<idAbs>This tool assists with the creation of a standalone table that can contain preset density values for all the unique classes in the ancillary dataset.  For instance, if your ancillary dataset represents land cover, you may wish to preset the "Water" or "Glacier" classes to zero.  After the table is created, it will need to be manually populated with preset density values, and classes that should not be preset should be removed from the table.</idAbs>
+		<resConst>
+			<Consts>
+				<useLimit>The author of this script assumes no liability for the quality nor the appropriate application of this code.  Please make sure you fully understand the process before attempting to draw conclusions from the results.</useLimit>
+			</Consts>
+		</resConst>
+	</dataIdInfo>
+	<distInfo>
+		<distributor>
+			<distorFormat>
+				<formatName>ArcToolbox Tool</formatName>
+			</distorFormat>
+		</distributor>
+	</distInfo>
+</metadata>

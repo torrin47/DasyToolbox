@@ -661,19 +661,14 @@ class DasymetricCalculations(object):
         
         # Pulls all the values from a field in a table into a python list object
         def GetValues(table, field, float="n"):
-            #inList = []
+            inList = []
             if table and table != "#":
                 fieldObj = arcpy.ListFields(table, field)[0]
-                '''  Legacy cursor code for performance comparison
                 rows = arcpy.SearchCursor(table)
                 row = rows.next()
                 while row:
                     inList.append(row.getValue(field))
                     row = rows.next()
-                ''' 
-                #Modern List Comprehension using data access module to do the same thing.
-                inList = [row[0] for row in arcpy.da.SearchCursor(table, field)]
-
                 if fieldObj.type != "String" and float != "y":  #Convert numeric class values to strings
                     inList = [str(int(val)) for val in inList]
                 rows, row, fieldList, fieldObj = None, None, None, None
@@ -761,23 +756,19 @@ class DasymetricCalculations(object):
                 ClearField(outWorkTable,fieldName)
                 
             # Process: gather unique IDs
-            # Gather unique ancillary IDs into a table - it might be more efficient to use the source ancillary dataset for this - 
+            # Gather unique ancillary IDs into a table - it might be more efficient to use the source ancillary dataset for this -
             # the one advantage to this method is that it selects only the classes that occur in the study area - and it minimizes the differences between raster and vector inputs
             AddPrintMessage("Collecting unique ancillary categories...",0)
-            #ancCategoryTable, ancCategoryTableName = NameCheck("AncCategoryTable",tableSuffix)
-            # Use SearchCursor with list comprehension to return a
-            # unique set of values in the specified field
-            ancCatValues = [row[0] for row in arcpy.da.SearchCursor(outWorkTable, ancCatName)]
-            inAncCatList = set(ancCatValues)
-            #arcpy.Frequency_analysis(outWorkTable, ancCategoryTable, ancCatName)
+            ancCategoryTable, ancCategoryTableName = NameCheck("AncCategoryTable",tableSuffix)
+            arcpy.Frequency_analysis(outWorkTable, ancCategoryTable, ancCatName)
             # Gather the IDs from the table to a python list object
-            #inAncCatList = GetValues(ancCategoryTable, ancCatName)
+            inAncCatList = GetValues(ancCategoryTable, ancCatName)
             outAncCatList = inAncCatList
             ancCatFieldProps = FieldProps(outWorkTable,ancCatName)
             if ancCatFieldProps[0] == "TEXT": #Strings require special treatment in where clauses, integers are fine as is.
                 inAncCatList = ["'" + ancCat + "'" for ancCat in inAncCatList]
                 outAncCatList = ['"' + ancCat + '"' for ancCat in outAncCatList]
-            #arcpy.Delete_management(ancCategoryTable)
+            arcpy.Delete_management(ancCategoryTable)
            
             # Create dictionary object of ancillary classes and their preset densities, as well as list of classes preset to zero
             unSampledList = []
@@ -902,7 +893,6 @@ class DasymetricCalculations(object):
                     arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
                 else:
                     arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION")
-                #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "[" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "] * [" + joinedFieldName(outWorkTableView,ancDensTableName,"CLASSDENS") + "]")
                 arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(outWorkTableView,ancDensTableName,"CLASSDENS") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, ancDensTableName)
             else:
@@ -919,7 +909,6 @@ class DasymetricCalculations(object):
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION")
                 arcpy.AddJoin_management(outWorkTableView, ancCatName, presetTable, "Value", "KEEP_COMMON")
                 presetTableName = GetName(GetFileName(presetTable))
-                #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "[" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "] * [" + joinedFieldName(outWorkTableView,presetTableName,presetField) + "]")
                 arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(outWorkTableView,presetTableName,presetField) + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView,presetTableName)
                 # Add these preset values to the ancDensTable for comparison purposes, altering the official CLASSDENS field, but not the SAMPLDENS field.
@@ -961,7 +950,6 @@ class DasymetricCalculations(object):
                 whereClause = arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF")) + " > 0"
                 whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA")) + " <> 0"
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
-                #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "[" + joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF") + "] * [" + joinedFieldName(outWorkTableView,outWorkTableName,"REM_AREA") + "] / [" + joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA") + "]")
                 arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF") + "! * !" + joinedFieldName(outWorkTableView,outWorkTableName,"REM_AREA") + "! / !" + joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, remainderTableName)
                 arcpy.Delete_management(remainderTable)
@@ -981,7 +969,6 @@ class DasymetricCalculations(object):
                 arcpy.CalculateField_management(ancDensTable2View, "CLASSDENS", "!POP_EST! / !POP_AREA!", 'PYTHON')
                 arcpy.AddJoin_management(outWorkTableView, ancCatName, ancDensTable2, ancCatName, "KEEP_COMMON")
                 # - Again recalculate population estimate field (POP_EST) using new representative density for final stats analysis
-                #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "[" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "] * [" + joinedFieldName(outWorkTableView,ancDensTable2Name,"CLASSDENS") + "]")
                 arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,dasyAreaField) + "! * !" + joinedFieldName(outWorkTableView,ancDensTable2Name,"CLASSDENS") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, ancDensTable2Name)
         
@@ -1012,7 +999,6 @@ class DasymetricCalculations(object):
             whereClause = arcpy.AddFieldDelimiters(outWorkTableView, joinedFieldName(outWorkTableView,popEstSumTableName,"POP_EST")) + " <> 0"
             arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
             # [TOTALFRACT] = [POP_EST] / POP_ESTSum
-            #arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"TOTALFRACT"), "[" + joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST") + "] / [" + joinedFieldName(outWorkTableView,popEstSumTableName,"POP_EST") + "]")
             arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"TOTALFRACT"), "!" + joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST") + "! / !" + joinedFieldName(outWorkTableView,popEstSumTableName,"POP_EST") + "!", 'PYTHON')
             arcpy.RemoveJoin_management(outWorkTableView, popEstSumTableName)
             arcpy.Delete_management(popEstSumTable)
@@ -1259,166 +1245,4 @@ class Model(object):
              return validator(parameters).updateMessages()
     def execute(self, parameters, messages):
         pass
-
-class Step2(object):
-    """C:\sync\DasyToolbox\Dasymetric_Toolbox.tbx\Step2"""
-    def __init__(self):
-        self.label = u'Step 2 - Alternate Combine Population and Ancillary Rasters'
-        self.canRunInBackground = False
-    def getParameterInfo(self):
-        # Input_rasters
-        param_1 = arcpy.Parameter()
-        param_1.name = u'Input_rasters'
-        param_1.displayName = u'Input rasters'
-        param_1.parameterType = 'Required'
-        param_1.direction = 'Input'
-        param_1.datatype = u'Composite Geodataset'
-        param_1.multiValue = True
-
-        # Dasymetric_Raster
-        param_2 = arcpy.Parameter()
-        param_2.name = u'Dasymetric_Raster'
-        param_2.displayName = u'Dasymetric Raster'
-        param_2.parameterType = 'Required'
-        param_2.direction = 'Output'
-        param_2.datatype = u'Raster Dataset'
-
-        # Dasymetric_Working_Table
-        param_3 = arcpy.Parameter()
-        param_3.name = u'Dasymetric_Working_Table'
-        param_3.displayName = u'Dasymetric Working Table'
-        param_3.parameterType = 'Required'
-        param_3.direction = 'Output'
-        param_3.datatype = u'Table'
-
-        return [param_1, param_2, param_3]
-    def isLicensed(self):
-        return True
-    def updateParameters(self, parameters):
-        validator = getattr(self, 'ToolValidator', None)
-        if validator:
-             return validator(parameters).updateParameters()
-    def updateMessages(self, parameters):
-        validator = getattr(self, 'ToolValidator', None)
-        if validator:
-             return validator(parameters).updateMessages()
-    def execute(self, parameters, messages):
-        pass
-
-class DasyWorkTable(object):
-    """---------------------------------------------------------------------------
-    # DasyWorkTable.py
-    # Helper script for Step 2 - Alternate Combine Population and Ancillary Rasters
-    # Used by Helper Tools/Create Dasymetric Working Table Helper script
-    # Not intended to be used as a standlone script - use CombinePopAnc.py instead.
-    # of the Intelligent Areal Weighting Dasymetric Mapping Toolset
-    # Usage: DasyWorkTable <dasyRaster> <dasyWorkTable>   
-    # ---------------------------------------------------------------------------
-    """
-    def __init__(self):
-        self.label = u'Create Dasymetric Working Table Helper Script'
-        self.canRunInBackground = False
-    def getParameterInfo(self):
-        # Dasymetric_Raster
-        param_1 = arcpy.Parameter(name = u'Dasymetric_Raster',
-                                  displayName = u'Dasymetric Raster',
-                                  parameterType = 'Required',
-                                  direction = 'Input',
-                                  datatype = u'Raster Dataset')
-
-        # Dasymetric_Working_Table
-        param_2 = arcpy.Parameter()
-        param_2.name = u'Dasymetric_Working_Table'
-        param_2.displayName = u'Dasymetric Working Table'
-        param_2.parameterType = 'Required'
-        param_2.direction = 'Output'
-        param_2.datatype = u'Table'
-
-        return [param_1, param_2]
-    def isLicensed(self):
-        return True
-    def updateParameters(self, parameters):
-        validator = getattr(self, 'ToolValidator', None)
-        if validator:
-             return validator(parameters).updateParameters()
-    def updateMessages(self, parameters):
-        validator = getattr(self, 'ToolValidator', None)
-        if validator:
-             return validator(parameters).updateMessages()
-    def execute(self, parameters, messages):
-        # Import system modules
-        import sys, string, os, arcpy, traceback
-        
-        # Helper function for displaying messages
-        def AddPrintMessage(msg, severity):
-            print (msg)
-            if severity == 0: messages.AddMessage(msg)
-            elif severity == 1: messages.AddWarningMessage(msg)
-            elif severity == 2: messages.AddErrorMessage(msg)
-        
-        def GetName(datasetName):
-            # Strips path from dataset
-            return os.path.basename(datasetName)
-        
-        def GetPath(datasetName):
-            # Returns path to dataset
-            # Because of bug #NIM050483 it's necessary to confirm that this path is not a GRID folder - the Geoprocessing Tool Validator sometimes autopopulates this.
-            datasetPath = os.path.dirname(datasetName)
-            desc = arcpy.Describe(datasetPath)
-            if (desc.datatype == 'RasterDataset'):
-              # Get parent folder, which is probably what the user intended.
-              datasetPath = os.path.dirname(datasetPath)
-            return datasetPath
-            
-        try:
-            # Script arguments...
-            dasyRaster = parameters[0].valueAsText # Raster dataset that is the combination of the population and ancillary datasets
-            dasyWorkTable = parameters[1].valueAsText # Output working table that will contain dasymetric population calculations
-        
-            # Derive appropriate tool parameters
-            workTablePath = GetPath(dasyWorkTable)
-            dasyWorkTable = os.path.join(workTablePath,GetName(dasyWorkTable)) # In case the folder was a grid.
-            
-            # Raster Value Attribute Tables (VATs) tend to be quirky for calculations, depending on the raster format.
-            # It is much more reliable and predictable to work with a standalone table.
-            AddPrintMessage("Creating the standalone working table...",0)
-            arcpy.TableToTable_conversion(dasyRaster, workTablePath, GetName(dasyWorkTable))
-            
-            AddPrintMessage("Adding new fields and creating indices...",0)
-            # Add necessary fields to the new table
-            for field in ["POP_COUNT","POP_AREA","POP_EST","REM_AREA","TOTALFRACT","NEW_POP","NEWDENSITY"]:
-                arcpy.AddField_management(dasyWorkTable, field, "DOUBLE")
-        
-            # Need to derive ID fields from input raster table...
-            fieldsList = arcpy.ListFields(dasyWorkTable)
-            popIDField = fieldsList[3].name # Should always be the fourth field
-            ancIDField = fieldsList[4].name # Should always be the fifth field
-        
-            # Create an index on both source unit ID and ancillary ID to speed processing
-            # This tool is only supported for shapefiles and file geodatabases
-            # not standalone dbf files or personal geodatabases
-            if os.path.dirname(dasyWorkTable)[-3:] == "gdb":
-                arcpy.AddIndex_management(dasyWorkTable, popIDField, "PopID_atx")
-                arcpy.AddIndex_management(dasyWorkTable, ancIDField, "AncID_atx")  
-            else:
-               AddPrintMessage("The Add Index tool does not support .dbf files.  Please manually add indices to the two fields in this table representing population and ancillary raster values by editing the properties of the table.",0) 
-            
-        # Geoprocessing Errors will be caught here
-        except Exception as e:
-            print (e.message)
-            messages.AddErrorMessage(e.message)
-        
-        # other errors caught here
-        except:
-            # Cycle through Geoprocessing tool specific errors
-            for msg in range(0, arcpy.GetMessageCount()):
-                if arcpy.GetSeverity(msg) == 2:
-                    arcpy.AddReturnMessage(msg)
-                    
-            # Return Python specific errors
-            tb = sys.exc_info()[2]
-            tbinfo = traceback.format_tb(tb)[0]
-            pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-                    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-            AddPrintMessage(pymsg, 2)
-            
+         
