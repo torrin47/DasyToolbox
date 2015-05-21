@@ -43,7 +43,7 @@ class Toolbox(object):
         self.label = "Intelligent Dasymetric Mapping Toolbox"
         self.alias = "IDM"
         # List of tool classes associated with this toolbox
-        self.tools = [PopToRaster, CombinePopAnc, CreateAncillaryPresetTable, DasymetricCalculations, CreateFinalRaster, Model, Step2, DasyWorkTable]
+        self.tools = [PopToRaster, CombinePopAnc, CreateAncillaryPresetTable, DasymetricCalculations, CreateFinalRaster, Model]
 
 # Tool implementation code
 
@@ -526,21 +526,21 @@ class DasymetricCalculations(object):
         self.canRunInBackground = False
     def getParameterInfo(self):
         # Population_Working_Table
-        param_1 = arcpy.Parameter()
-        param_1.name = u'Population_Working_Table'
-        param_1.displayName = u'Population Working Table'
-        param_1.parameterType = 'Required'
-        param_1.direction = 'Input'
-        param_1.datatype = u'Table'
-
+        param_1 = arcpy.Parameter(
+            name = u'Population_Working_Table',
+            displayName = u'Population Working Table',
+            parameterType = 'Required',
+            direction = 'Input',
+            datatype = u'Table')
+        
         # Population_Count_Field
-        param_2 = arcpy.Parameter()
-        param_2.name = u'Population_Count_Field'
-        param_2.displayName = u'Population Count Field'
-        param_2.parameterType = 'Required'
-        param_2.direction = 'Input'
-        param_2.datatype = u'Field'
-        param_2.parameterDependencies = [param_1.name]
+        param_2 = arcpy.Parameter(
+            name = u'Population_Count_Field',
+            displayName = u'Population Count Field',
+            parameterType = 'Required',
+            direction = 'Input',
+            datatype = u'Field',
+            parameterDependencies = [param_1.name])
 
         # Population_Area_Field
         param_3 = arcpy.Parameter()
@@ -549,6 +549,7 @@ class DasymetricCalculations(object):
         param_3.parameterType = 'Required'
         param_3.direction = 'Input'
         param_3.datatype = u'Field'
+        param_3.value = u'Count'
         param_3.parameterDependencies = [param_1.name]
 
         # Dasymetric_Working_Table
@@ -584,6 +585,7 @@ class DasymetricCalculations(object):
         param_7.parameterType = 'Required'
         param_7.direction = 'Input'
         param_7.datatype = u'Field'
+        param_7.value = u'PRESETDENS'
         param_7.parameterDependencies = [param_4.name]
 
         # Minimum_Sample
@@ -628,6 +630,7 @@ class DasymetricCalculations(object):
         param_12.parameterType = 'Optional'
         param_12.direction = 'Input'
         param_12.datatype = u'Field'
+        param_12.value = u'PRESETDENS'
         param_12.parameterDependencies = [param_11.name]
 
         return [param_1, param_2, param_3, param_4, param_5, param_6, param_7, param_8, param_9, param_10, param_11, param_12]

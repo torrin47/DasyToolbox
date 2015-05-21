@@ -43,7 +43,7 @@ class Toolbox(object):
         self.label = "Intelligent Dasymetric Mapping Toolbox"
         self.alias = "IDM"
         # List of tool classes associated with this toolbox
-        self.tools = [PopToRaster, CombinePopAnc, CreateAncillaryPresetTable, DasymetricCalculations, CreateFinalRaster, Model, Step2, DasyWorkTable]
+        self.tools = [PopToRaster, CombinePopAnc, CreateAncillaryPresetTable, DasymetricCalculations, CreateFinalRaster, Model]
 
 # Tool implementation code
 
@@ -931,7 +931,7 @@ class DasymetricCalculations(object):
                     i = i + 1
                 outPresetCatList, inPresetCatList, i = None, None, None
             RemoveNulls(outWorkTableView,"POP_EST")
-            
+
             # Intelligent areal weighting for unsampled classes
             # - for every source population unit sum the initial population estimates and compare
             # - the result to the actual count for the unit. Distribute any residual population 
@@ -947,13 +947,14 @@ class DasymetricCalculations(object):
                 arcpy.AddField_management(remainderTable, "POP_DIFF", "DOUBLE")
                 arcpy.CalculateField_management(remainderTable, "POP_DIFF", "!POP_COUNT! - !POP_EST!", 'PYTHON')
                 arcpy.AddJoin_management(outWorkTableView, popIDField, remainderTable, popIDField, "KEEP_COMMON")
-                whereClause = arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF")) + " > 0"
-                whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA")) + " <> 0"
+                whereClause = arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF")) + " > 0"  # Can't really deal with the overestimates
+                whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA")) + " <> 0"  # Don't want to divide by zero
+                whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,outWorkTableName,ancCatName)) + " IN (" + ", ".join(unSampledList) + ")" # Still only working with unsampled classes
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
                 arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF") + "! * !" + joinedFieldName(outWorkTableView,outWorkTableName,"REM_AREA") + "! / !" + joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, remainderTableName)
                 arcpy.Delete_management(remainderTable)
-        
+                
                 # Calculate population density values for these unsampled classes
                 # - for every unsampled ancillary class, sum total area and total population estimated using intelligent areal weighting.  
                 # Calculate class representative density.
