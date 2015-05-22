@@ -688,7 +688,7 @@ class DasymetricCalculations(object):
                 if field.type == 'String':
                     arcpy.CalculateField_management(tableName,fieldName, "''", 'PYTHON')
                 else:
-                    arcpy.CalculateField_management(tableName,fieldName, "0", 'PYTHON')
+                    arcpy.CalculateField_management(tableName,fieldName, "None", 'PYTHON')
         
         # Convert output from field property into expected input for field creation.
         def FieldProps(tableName, fieldName):
@@ -868,7 +868,8 @@ class DasymetricCalculations(object):
             # - (count, mean, min, max, stddev) of densities further analysis
             AddPrintMessage("Calculating statistics for selected classes...",0)
             # Make sure there are representative classes.
-            whereClause = arcpy.AddFieldDelimiters(popWorkingTable,"REP_CAT") + " IS NOT NULL"
+            RemoveNulls(popWorkTableView,"REP_CAT")
+            whereClause = arcpy.AddFieldDelimiters(popWorkingTable,"REP_CAT") + " <> 0"
             if ancCatFieldProps[0] == "TEXT":
                 whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(popWorkingTable,"REP_CAT") + " <> ''"
             aPopWorkTableView = "aPopWorkTableView"
@@ -942,27 +943,27 @@ class DasymetricCalculations(object):
                 arcpy.CalculateField_management(outWorkTableView, "REM_AREA", "!" + dasyAreaField + "!", 'PYTHON')
                 RemoveNulls(outWorkTableView,"REM_AREA")
                 remainderTable, remainderTableName = NameCheck("remainderTable", tableSuffix)
-                arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION") # To clear previous selection set
+                arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION") # To clear previous selection set - remainder table consolidates all population estimates with all remaining area.
                 arcpy.Frequency_analysis(outWorkTableView, remainderTable, popIDField + ";POP_COUNT", "POP_EST;REM_AREA")
                 arcpy.AddField_management(remainderTable, "POP_DIFF", "DOUBLE")
                 arcpy.CalculateField_management(remainderTable, "POP_DIFF", "!POP_COUNT! - !POP_EST!", 'PYTHON')
                 arcpy.AddJoin_management(outWorkTableView, popIDField, remainderTable, popIDField, "KEEP_COMMON")
                 whereClause = arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF")) + " > 0"  # Can't really deal with the overestimates
                 whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA")) + " <> 0"  # Don't want to divide by zero
-                whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,outWorkTableName,ancCatName)) + " IN (" + ", ".join(unSampledList) + ")" # Still only working with unsampled classes
+                whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,outWorkTableName,"REM_AREA")) + " <> 0" # Still only working with unsampled classes
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
                 arcpy.CalculateField_management(outWorkTableView, joinedFieldName(outWorkTableView,outWorkTableName,"POP_EST"), "!" + joinedFieldName(outWorkTableView,remainderTableName,"POP_DIFF") + "! * !" + joinedFieldName(outWorkTableView,outWorkTableName,"REM_AREA") + "! / !" + joinedFieldName(outWorkTableView,remainderTableName,"REM_AREA") + "!", 'PYTHON')
                 arcpy.RemoveJoin_management(outWorkTableView, remainderTableName)
                 arcpy.Delete_management(remainderTable)
-                
+                raise Exception("Let's get out of here")
                 # Calculate population density values for these unsampled classes
                 # - for every unsampled ancillary class, sum total area and total population estimated using intelligent areal weighting.  
                 # Calculate class representative density.
                 whereClause = arcpy.AddFieldDelimiters(outWorkTableView,ancCatName) + " IN (" + ", ".join(unSampledList) + ")"
-                whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,"POP_COUNT") + " <> 0"
+                whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(outWorkTableView,"POP_EST") + " <> 0"
                 arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
                 ancDensTable2, ancDensTable2Name = NameCheck("ancDensTable2",tableSuffix)
-                arcpy.Frequency_analysis(outWorkTableView, ancDensTable2, ancCatName, "POP_EST;POP_AREA")
+                arcpy.Frequency_analysis(outWorkTableView, ancDensTable2, ancCatName, "POP_EST;REM_AREA")
                 arcpy.AddField_management(ancDensTable2, "CLASSDENS", "DOUBLE")
                 whereClause = arcpy.AddFieldDelimiters(ancDensTable2,"POP_AREA") + " > 0"
                 ancDensTable2View = "ancDensTable2View"
@@ -984,7 +985,7 @@ class DasymetricCalculations(object):
                     row.REP_CAT = int(unSampledList[i])
                     rows.insertRow(row)
                 del rows, row
-                arcpy.Delete_management(ancDensTable2)
+                #arcpy.Delete_management(ancDensTable2)
             # End of intelligent areal weighting
              
             # Perform final calculations to ensure pycnophylactic integrity

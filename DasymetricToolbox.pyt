@@ -43,7 +43,7 @@ class Toolbox(object):
         self.label = "Intelligent Dasymetric Mapping Toolbox"
         self.alias = "IDM"
         # List of tool classes associated with this toolbox
-        self.tools = [PopToRaster, CombinePopAnc, CreateAncillaryPresetTable, DasymetricCalculations, CreateFinalRaster, Model]
+        self.tools = [PopToRaster, CombinePopAnc, CreateAncillaryPresetTable, DasymetricCalculations, CreateFinalRaster, CombinedSteps123]
 
 # Tool implementation code
 
@@ -1153,8 +1153,7 @@ class CreateFinalRaster(object):
             AddPrintMessage(pymsg, 2)
         
 
-class Model(object):
-    """C:\sync\DasyToolbox\Dasymetric_Toolbox.tbx\Model"""
+class CombinedSteps123(object):
     def __init__(self):
         self.label = u'Combined Steps 1-3 - Prepare for Dasymetric Calc'
         self.canRunInBackground = False
