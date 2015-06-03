@@ -526,21 +526,21 @@ class DasymetricCalculations(object):
         self.canRunInBackground = False
     def getParameterInfo(self):
         # Population_Working_Table
-        param_1 = arcpy.Parameter(
-            name = u'Population_Working_Table',
-            displayName = u'Population Working Table',
-            parameterType = 'Required',
-            direction = 'Input',
-            datatype = u'Table')
+        param_1 = arcpy.Parameter()
+        param_1.name = u'Population_Working_Table'
+        param_1.displayName = u'Population Working Table'
+        param_1.parameterType = 'Required'
+        param_1.direction = 'Input'
+        param_1.datatype = u'Table'
         
         # Population_Count_Field
-        param_2 = arcpy.Parameter(
-            name = u'Population_Count_Field',
-            displayName = u'Population Count Field',
-            parameterType = 'Required',
-            direction = 'Input',
-            datatype = u'Field',
-            parameterDependencies = [param_1.name])
+        param_2 = arcpy.Parameter()
+        param_2.name = u'Population_Count_Field'
+        param_2.displayName = u'Population Count Field'
+        param_2.parameterType = 'Required'
+        param_2.direction = 'Input'
+        param_2.datatype = u'Field'
+        param_2.parameterDependencies = [param_1.name]
 
         # Population_Area_Field
         param_3 = arcpy.Parameter()
@@ -1173,6 +1173,7 @@ class CombinedSteps123(object):
         param_2.parameterType = 'Required'
         param_2.direction = 'Input'
         param_2.datatype = u'Field'
+        param_2.parameterDependencies = [param_1.name]
 
         # Population_Key_Field
         param_3 = arcpy.Parameter()
@@ -1181,6 +1182,7 @@ class CombinedSteps123(object):
         param_3.parameterType = 'Optional'
         param_3.direction = 'Input'
         param_3.datatype = u'Field'
+        param_3.parameterDependencies = [param_1.name]
 
         # Population_Raster
         param_4 = arcpy.Parameter()
@@ -1242,7 +1244,14 @@ class CombinedSteps123(object):
 
         return [param_1, param_2, param_3, param_4, param_5, param_6, param_7, param_8, param_9, param_10]
     def isLicensed(self):
-        return True
+        """Allow the tool to execute, only if the Spatial Analyst extension 
+        is available."""
+        try:
+            if arcpy.CheckExtension("spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True  # tool can be executed
     def updateParameters(self, parameters):
         validator = getattr(self, 'ToolValidator', None)
         if validator:
@@ -1251,7 +1260,51 @@ class CombinedSteps123(object):
         validator = getattr(self, 'ToolValidator', None)
         if validator:
              return validator(parameters).updateMessages()
-    def execute(self, parameters, messages):
-        pass
-
+    def execute(self, parameters, messages):            
+        try:
+            # Script arguments...
+            popFeatures = parameters[0]  # The population input polygon FeatureClass to be converted to a raster.
+            popCountField = parameters[1] # The field in the population dataset that contains count data.
+            popKeyField = parameters[2] # Optional - Since the tool will always use the system-recognized ObjectID field for the output raster Values, this is for reference only and is not used by the tool. It can be helpful to have another key field (commonly census FIPS code) for joining the output raster to other tables. 
+            popRaster = parameters[3] # The output population raster dataset that will be created, inlcuding the full path. When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for a GRID file format.
+            popWorkTable = parameters[4] # The tool will create a standalone table for performing calcluations. Please enter a name and path for the output table.
+            cellAssignmentType = parameters[5] # The method to determine how the cell will be assigned a value when more than one feature falls within a cell. Valid values: 
+                                                                # CELL_CENTER—The polygon in which the center of the cell yields the attribute to assign to the cell. 
+                                                                # MAXIMUM_AREA—The single feature with the largest area within the cell yields the attribute to assign to the cell. 
+                                                                # MAXIMUM_COMBINED_AREA—Features with common attributes are combined to produce a single area within the cell in question for consideration when determining the largest area. 
+            ancRaster = parameters[6] # The ancillary raster dataset to be used to redistribute population. The output raster from this tool will be snapped to the ancillary raster and have matching spatial reference and cell size.
+            ancPresetTable = parameters[7] # The output standalone table with full path that will be created.
+            dasyRaster = parameters[8] # The name and full path of the output dasymetric raster that will be created. This raster will have a single value for each unique combination of population units and ancillary classes. When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for a GRID file format.
+            dasyWorkTable = parameters[9] # A stand-alone working table will be created that will be used for subsequent dasymetric calculations. Performing calculations on a standalone table is more predictable than trying to perform calculations on a raster value attribute table. 
             
+            AddPrintMessage("Executing Step 1")
+            step1 = PopToRaster()
+            step1.execute([popFeatures,popCountField,popKeyField,ancRaster,cellAssignmentType,popRaster,popWorkTable],messages)
+            
+            AddPrintMessage("Executing Step 2")
+            step2 = CombinePopAnc()
+            step2.execute([popRaster,ancRaster,dasyRaster,dasyWorkTable],messages)
+            
+            AddPrintMessage("Executing Step 3")
+            step3 = CreateAncillaryPresetTable()
+            step3.execute([ancRaster,ancPresetTable],messages)
+
+            # Geoprocessing Errors will be caught here
+        except Exception as e:
+            print (e.message)
+            messages.AddErrorMessage(e.message)
+        
+        # other errors caught here
+        except:
+            # Cycle through Geoprocessing tool specific errors
+            for msg in range(0, arcpy.GetMessageCount()):
+                if arcpy.GetSeverity(msg) == 2:
+                    arcpy.AddReturnMessage(msg)
+                    
+            # Return Python specific errors
+            tb = sys.exc_info()[2]
+            tbinfo = traceback.format_tb(tb)[0]
+            pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+                    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            AddPrintMessage(pymsg, 2)
+        
