@@ -6,8 +6,8 @@
 		<ArcGISFormat>1.0</ArcGISFormat>
 		<ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle>
 		<SyncOnce>TRUE</SyncOnce>
-	</Esri>
-	<tool name="CreateAncillaryPresetTable" displayname="Step 3 - Create Ancillary Class Preset Table" toolboxalias="">
+		<ModDate>20150604</ModDate><ModTime>155859</ModTime></Esri>
+	<tool name="CreateAncillaryPresetTable" displayname="Step 3 - Create Ancillary Class Preset Table" toolboxalias="IDM">
 		<summary>
 			<para>This tool assists with the creation of a standalone table that can contain preset density values for all the unique classes in the ancillary dataset.  For instance, if your ancillary dataset represents land cover, you may wish to preset the "Water" or "Glacier" classes to zero.  After the table is created, it will need to be manually populated with preset density values, and classes that should not be preset should be removed from the table.</para>
 		</summary>

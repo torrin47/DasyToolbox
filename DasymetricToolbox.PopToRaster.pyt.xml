@@ -5,12 +5,12 @@
 		<CreaDate>20090812</CreaDate>
 		<CreaTime>16444600</CreaTime>
 		<SyncOnce>TRUE</SyncOnce>
-		<ModDate>20110405</ModDate>
-		<ModTime>185618</ModTime>
+		<ModDate>20150604</ModDate>
+		<ModTime>155857</ModTime>
 		<ArcGISFormat>1.0</ArcGISFormat>
 		<ArcGISProfile>NAP</ArcGISProfile>
 	</Esri>
-	<tool name="PopToRaster" displayname="Step 1 - Population Features to Raster" toolboxalias="" xmlns="">
+	<tool name="PopToRaster" displayname="Step 1 - Population Features to Raster" toolboxalias="IDM" xmlns="">
 		<summary>This tool converts a polygon feature class to an integer raster using the ObjectID of the feature class for the value of the output raster. This tool is based upon the "Polygon to Raster" conversion tool and is intended to be used for Dasymetric Mapping.
         The output raster will contain unique population source units and their associated population.</summary>
 		<arcToolboxHelpPath>C:\Program Files\ArcGIS\Desktop10.0\Help\gp</arcToolboxHelpPath>
