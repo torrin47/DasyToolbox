@@ -6,21 +6,21 @@
 		<ArcGISFormat>1.0</ArcGISFormat>
 		<ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle>
 		<SyncOnce>TRUE</SyncOnce>
-		<ModDate>20150429</ModDate>
-		<ModTime>19000400</ModTime>
+		<ModDate>20150606</ModDate>
+		<ModTime>131323</ModTime>
 		<scaleRange>
 			<minScale>150000000</minScale>
 			<maxScale>5000</maxScale>
 		</scaleRange>
 		<ArcGISProfile>FGDC</ArcGISProfile>
 	</Esri>
-	<tool name="LegacyDasymetricCalculations" displayname="Step 4 - Dasymetric Calculations (Legacy Method)" toolboxalias="IDM" xmlns="">
+	<tool name="LegacyDasymetricCalculations" displayname="Legacy Step 4 - Dasymetric Calculations" toolboxalias="IDM" xmlns="">
 		<summary>
 			<para>A dasymetric map seeks to display statistical surface data by exhaustively partitioning space into zones where the zone boundaries reflect the underlying statistical surface variation.  The process of dasymetric mapping is the transformation of data from a set of arbitrary source zones to a dasymetric map via the overlay of the source zones with an ancillary data set.  In practice, dasymetric mapping is often considered a particular type of areal interpolation technique where source zone data are excluded from certain classes in a categorical ancillary data set.  Dasymetric mapping is applicable to a wide variety of tasks where the user seeks to refine spatially aggregated data, for example in estimating local population characteristics in areas where only coarser, regional resolution census data are available.  This tool addresses the design, implementation, validation, and application of a new 'intelligent' dasymetric mapping  (IDM) technique that supports a variety of methods for characterizing the relationship between the ancillary data and underlying statistical surface.  The technique is referred to as intelligent because an analyst may establish this relationship subjectively using their own domain knowledge, extract this relationship from the data using a novel empirical sampling technique, or combine the subjective and empirically-based methods. This version of the tool uses the "Frequency Analysis" geoprocessing tool to calculate statistics for individual population units.  This method might possibly be a better choice for very large datasets because it writes intermediate tables to disc rather than holding them in memory, but it is definitely much slower than the newer version of this code. We recommend you try the new method first, and use this one only if you encounter problems. The output should be identical.</para>
 		</summary>
 		<arcToolboxHelpPath>c:\program files (x86)\arcgis\desktop10.3\Help\gp</arcToolboxHelpPath>
 		<parameters>
-			<param name="Population_Working_Table" displayname="Population Working Table" type="Required" direction="Input" expression="&lt;Population_Working_Table&gt;">
+			<param name="Population_Working_Table" displayname="Population Working Table" type="Required" direction="Input" expression="Population_Working_Table" datatype="Table">
 				<commandReference>
 					<para>The standalone population table created in prior steps.</para>
 				</commandReference>
@@ -28,7 +28,7 @@
 					<para>The standalone population table created in prior steps.  </para>
 				</dialogReference>
 			</param>
-			<param name="Population_Count_Field" displayname="Population Count Field" type="Required" direction="Input" expression="&lt;Population_Count_Field&gt;">
+			<param name="Population_Count_Field" displayname="Population Count Field" type="Required" direction="Input" expression="Population_Count_Field" datatype="Field">
 				<commandReference>
 					<para>The field in the population feature class that contains population count values.</para>
 				</commandReference>
@@ -36,7 +36,7 @@
 					<para>The field in the population working table that contains population count values.</para>
 				</dialogReference>
 			</param>
-			<param name="Population_Area_Field" displayname="Population Area Field" type="Required" direction="Input" expression="&lt;Population_Area_Field&gt;">
+			<param name="Population_Area_Field" displayname="Population Area Field" type="Required" direction="Input" expression="Population_Area_Field" datatype="Field">
 				<commandReference>
 					<para>If this script is being used on raster data, this field should be set to "Count."</para>
 					<para>If this tool is being used with vector data, please make sure there is a field in the population feature class that contains area values that were calculated in this feature class' spatial reference.  If the feature class is in a geodatabase, there should already be such a field.  If the feature class is a shapefile, you must calculate this field yourself.  Please see the ArcGIS help for more information on calculating the area of a shape.</para>
@@ -46,7 +46,7 @@
 					<para>If this tool is being used with vector data, please make sure there is a field in the population feature class that contains area values that were calculated in this feature class' spatial reference.  If the feature class is in a geodatabase, there should already be such a field.  If the feature class is a shapefile, you must calculate this field yourself.  Please see the ArcGIS help for more information on calculating the area of a shape.</para>
 				</dialogReference>
 			</param>
-			<param name="Dasymetric_Working_Table" displayname="Dasymetric Working Table" type="Required" direction="Input" expression="&lt;Dasymetric_Working_Table&gt;">
+			<param name="Dasymetric_Working_Table" displayname="Dasymetric Working Table" type="Required" direction="Input" expression="Dasymetric_Working_Table" datatype="Table">
 				<commandReference>
 					<para>The standalone table, usually created in step two, that contains a row for each unique combination of population unit and ancillary class.  This table will be used for the bulk of the dasymetric calculations.  </para>
 					<para>If you re-use the same table more than once, the script will purge the old calculated values and start fresh.  </para>
@@ -56,7 +56,7 @@
 					<para>If you re-use the same table more than once, the script will purge the old calculated values and start fresh.  </para>
 				</dialogReference>
 			</param>
-			<param name="Population_ID_Field" displayname="Population ID Field" type="Required" direction="Input" expression="&lt;Population_ID_Field&gt;">
+			<param name="Population_ID_Field" displayname="Population ID Field" type="Required" direction="Input" expression="Population_ID_Field" datatype="Field">
 				<commandReference>
 					<para>The field in the output working table that uniquely identifies the source units.  This field name is usually derived from the name of the Population Raster.</para>
 				</commandReference>
@@ -64,7 +64,7 @@
 					<para>The field in the output working table that uniquely identifies the source units.  This field name is usually derived from the name of the Population Raster.</para>
 				</dialogReference>
 			</param>
-			<param name="Ancillary_Class_Field" displayname="Ancillary Class Field" type="Required" direction="Input" expression="&lt;Ancillary_Class_Field&gt;">
+			<param name="Ancillary_Class_Field" displayname="Ancillary Class Field" type="Required" direction="Input" expression="Ancillary_Class_Field" datatype="Field">
 				<commandReference>
 					<para>Field containing ancillary classes to be used for redistributing the population within each source unit.  The field may be of any type.</para>
 				</commandReference>
@@ -72,7 +72,7 @@
 					<para>The field in the output working table that contains ancillary class values.  This field name is usually derived from the name of the Ancillary Raster.</para>
 				</dialogReference>
 			</param>
-			<param name="Combined_Area_Field" displayname="Combined Area Field" type="Required" direction="Input" expression="&lt;Combined_Area_Field&gt;">
+			<param name="Combined_Area_Field" displayname="Combined Area Field" type="Required" direction="Input" expression="Combined_Area_Field" datatype="Field">
 				<commandReference>
 					<para>The name of the field in the output working table containing the raster cell count.</para>
 				</commandReference>
@@ -80,7 +80,7 @@
 					<para>The name of the field in the output working table containing the raster cell count.</para>
 				</dialogReference>
 			</param>
-			<param name="Minimum_Sample" displayname="Minimum Sample" type="Required" direction="Input" expression="&lt;Minimum_Sample&gt;">
+			<param name="Minimum_Sample" displayname="Minimum Sample" type="Required" direction="Input" expression="Minimum_Sample" datatype="Long">
 				<commandReference>
 					<para>This is the minimum threshold of representative source units required for an ancillary class to be considered sampled.  We found that if only a small number (1-3) were sampled, those units were not often truly representative of others in that ancillary class, and the Intelligent Areal Weighting (IAW) method provided better results.  Any class that is not preset or sufficiently sampled will be assigned a density using the IAW method.</para>
 				</commandReference>
@@ -88,7 +88,7 @@
 					<para>This is the minimum threshold of representative source units required for an ancillary class to be considered sampled.  We found that if only a small number (1-3) were sampled, those units were not often truly representative of others in that ancillary class, and the Intelligent Areal Weighting (IAW) method provided better results.  Any class that is not preset or sufficiently sampled will be assigned a density using the IAW method.</para>
 				</dialogReference>
 			</param>
-			<param name="Minimum_Sampling_Area" displayname="Minimum Sampling Area" type="Required" direction="Input" expression="&lt;Minimum_Sampling_Area&gt;">
+			<param name="Minimum_Sampling_Area" displayname="Minimum Sampling Area" type="Required" direction="Input" expression="Minimum_Sampling_Area" datatype="Long">
 				<commandReference>
 					<para>The minimum number of raster cells that may be considered "representative" of a source area.  Increasing this number may eliminate some very small areas that might be considered anomalous outliers that could skew the class average.</para>
 				</commandReference>
@@ -96,7 +96,7 @@
 					<para>The minimum number of raster cells that may be considered "representative" of a source area.  Increasing this number may eliminate some very small areas that might be considered anomalous outliers that could skew the class average.</para>
 				</dialogReference>
 			</param>
-			<param name="Percent" displayname="Percent" type="Optional" direction="Input" expression="{Percent}">
+			<param name="Percent" displayname="Percent" type="Optional" direction="Input" expression="{Percent}" datatype="Double">
 				<commandReference>
 					<para>This is the percent threshold value, in decimal notation, if Percent Area is specified above.  </para>
 				</commandReference>
@@ -104,7 +104,7 @@
 					<para>The script will calculate the percent area that each ancillary class covers in each source unit, and any source unit with an ancillary class above the percent area threshold will be considered representative of that class.  Please specify the percent threshold value, in decimal notation.</para>
 				</dialogReference>
 			</param>
-			<param name="Preset_Table" displayname="Preset Table" type="Optional" direction="Input" expression="{Preset_Table}">
+			<param name="Preset_Table" displayname="Preset Table" type="Optional" direction="Input" expression="{Preset_Table}" datatype="Table">
 				<commandReference>
 					<para>If you wish, you may use this feature to manually "preset" the popluation density values of any of your ancillary classes with a priori values.  For instance, if your ancillary dataset represents land cover, you may wish to preset the "Water" or "Glacier" classes to zero.  To do so, create a standalone table with a field of the same name and type as the Ancillary Class Field above that contains only your preset classes, and add a field that contains their respective preset classes.</para>
 				</commandReference>
@@ -112,7 +112,7 @@
 					<para>The ancillary class preset table created in step 3.</para>
 				</dialogReference>
 			</param>
-			<param name="Preset_Field" displayname="Preset Field" type="Optional" direction="Input" expression="{Preset_Field}">
+			<param name="Preset_Field" displayname="Preset Field" type="Optional" direction="Input" expression="{Preset_Field}" datatype="Field">
 				<commandReference>
 					<para>The field in the preset table containing the preset population density values.</para>
 				</commandReference>
@@ -136,7 +136,7 @@
 	</tool>
 	<dataIdInfo>
 		<idCitation>
-			<resTitle>Step 4 - Dasymetric Calculations (Legacy Method)</resTitle>
+			<resTitle>Legacy Step 4 - Dasymetric Calculations</resTitle>
 		</idCitation>
 		<idAbs>A dasymetric map seeks to display statistical surface data by exhaustively partitioning space into zones where the zone boundaries reflect the underlying statistical surface variation.  The process of dasymetric mapping is the transformation of data from a set of arbitrary source zones to a dasymetric map via the overlay of the source zones with an ancillary data set.  In practice, dasymetric mapping is often considered a particular type of areal interpolation technique where source zone data are excluded from certain classes in a categorical ancillary data set.  Dasymetric mapping is applicable to a wide variety of tasks where the user seeks to refine spatially aggregated data, for example in estimating local population characteristics in areas where only coarser, regional resolution census data are available.  This tool addresses the design, implementation, validation, and application of a new ‘intelligent’ dasymetric mapping  (IDM) technique that supports a variety of methods for characterizing the relationship between the ancillary data and underlying statistical surface.  The technique is referred to as intelligent because an analyst may establish this relationship subjectively using their own domain knowledge, extract this relationship from the data using a novel empirical sampling technique, or combine the subjective and empirically-based methods. This version of the tool uses the "Frequency Analysis" geoprocessing tool to calculate statistics for individual population units.  This method might possibly be a better choice for very large datasets because it writes intermediate tables to disc rather than holding them in memory, but it is definitely much slower than the newer version of this code. We recommend you try the new method first, and use this one only if you encounter problems. The output should be identical.</idAbs>
 		<descKeys KeyTypCd="005">

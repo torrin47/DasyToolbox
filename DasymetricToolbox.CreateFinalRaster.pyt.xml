@@ -6,7 +6,7 @@
 		<ArcGISFormat>1.0</ArcGISFormat>
 		<ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle>
 		<SyncOnce>TRUE</SyncOnce>
-		<ModDate>20150604</ModDate><ModTime>155903</ModTime></Esri>
+		<ModDate>20150606</ModDate><ModTime>131324</ModTime></Esri>
 	<tool name="CreateFinalRaster" displayname="Step 5 - Create Final Dasymetric Raster" toolboxalias="IDM">
 		<summary>
 			<para>This tool creates a floating-point population density raster by joining a table with dasymetrically calculated population density with the combined population and ancillary raster created in step 2.</para>

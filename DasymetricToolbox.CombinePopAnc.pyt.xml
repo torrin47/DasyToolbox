@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<metadata xml:lang="en"><Esri><CreaDate>20150327</CreaDate><CreaTime>19270100</CreaTime><ArcGISFormat>1.0</ArcGISFormat><ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle><SyncOnce>TRUE</SyncOnce><ModDate>20150604</ModDate><ModTime>155858</ModTime></Esri>
+<metadata xml:lang="en"><Esri><CreaDate>20150327</CreaDate><CreaTime>19270100</CreaTime><ArcGISFormat>1.0</ArcGISFormat><ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle><SyncOnce>TRUE</SyncOnce><ModDate>20150605</ModDate><ModTime>103548</ModTime></Esri>
 	<tool name="CombinePopAnc" displayname="Step 2 - Combine Population and Ancillary Rasters" toolboxalias="IDM" xmlns="">
 		<summary>This tool combines a raster of population enumeration units with an ancillary dataset to create an output raster with values that correspond to unique combinations of population units and ancillary classes. A standalone attribute table is exported from the raster attribute table that will be used to use intelligent dasymetric mapping to redistribute population within each source unit according to the ancillary classes.</summary>
 		<arcToolboxHelpPath>c:\program files (x86)\arcgis\desktop10.3\Help\gp</arcToolboxHelpPath>

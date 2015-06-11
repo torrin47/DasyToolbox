@@ -13,7 +13,7 @@ Description:   This toolbox contains a number of scripts that assist
 
 import arcpy, os, sys, traceback
 
-##Global helper functions used by all classes
+####Global helper functions used by all classes
 
 # Helper function for displaying messages
 def AddPrintMessage(msg, severity = 0):
@@ -36,6 +36,85 @@ def GetPath(datasetName):
         datasetPath = os.path.dirname(datasetPath)
     return datasetPath
 
+# If two .dbf tables are joined, the joined fieldnames all have tablename. as prefix.
+# If two tables of different formats are joined, the first table has tablename: as prefix, and the joined table has tablename. as prefix.
+# If two info or FGDB tables are joined, there are no prefixes, and duplicate tablenames in the joined table have a _1 suffix.
+# Solution - derive from the list of Fields:
+def joinedFieldName(tableView,tableName,fieldName):
+    fieldList = [field.name for field in arcpy.ListFields(tableView)]
+    if ('.' in fieldList[0]) or (':' in fieldList[0]):
+        for field in fieldList:
+          if ((field[-len(fieldName):].lower() == fieldName.lower()) and (field[:len(tableName)].lower() == tableName.lower())):
+              return field
+    else:
+        if (tableName.lower() in arcpy.Describe(tableView).name): 
+            return fieldName # If this field is in the base table, the name will not be changed
+        else:
+            return arcpy.ListFields(tableView,fieldName + "*")[-1].name # If this field is in the joined table, it should be the last match from this function (or first, if there's only 1).
+
+# Strips extension from filename
+def GetFileName(datasetName):
+    return os.path.splitext(datasetName)[0] 
+
+# Pulls all the values from a field in a table into a python list object
+def GetValues(table, field, float="n"):
+    if table and table != "#":
+        fieldObj = arcpy.ListFields(table, field)[0]
+        #Modern List Comprehension using data access module to do the same thing.
+        inList = [row[0] for row in arcpy.da.SearchCursor(table, field)]
+        if fieldObj.type != "String" and float != "y":  #Convert numeric class values to strings
+            inList = [str(int(val)) for val in inList]
+        return inList
+    else:
+        return []
+
+ # Because NULL values can be problematic in queries and field calculations, replaces all NULLS with zeroess.   
+def RemoveNulls(table,field): 
+    whereClause = arcpy.AddFieldDelimiters(table,field) + " IS NULL"
+    calculateStaticValue(table,field,"0",whereClause)                
+
+def calculateStaticValue(table,field,value,whereClause=''):
+    cursor = arcpy.UpdateCursor(table, whereClause)
+    if value: 
+        for row in cursor:
+            row.setValue(field, value)
+            cursor.updateRow(row)  
+    else: #Set to null.
+        for row in cursor:
+            row.setNull(field)
+            cursor.updateRow(row)
+
+# The working tables are frequently reused, so it's necessary to reset fields to zeroes
+def ClearField(tableName,fieldName):
+    fields = arcpy.ListFields(tableName, fieldName)
+    if (len(fields) > 0):
+        field = fields[0]
+        if field.type == 'String':
+            calculateStaticValue(tableName,fieldName,"''")
+        else:
+            desc = arcpy.Describe(tableName)
+            if desc.dataType == u'DbaseTable':
+                calculateStaticValue(tableName,fieldName,0)
+            else:
+                calculateStaticValue(tableName,fieldName,False)
+
+# Convert output from field property into expected input for field creation.
+def FieldProps(tableName, fieldName):
+    fieldTypeLookup = {"Integer":"LONG","String":"TEXT","Single":"FLOAT","Double":"DOUBLE","SmallInteger":"SHORT","Date":"DATE"}
+    field = arcpy.ListFields(tableName, fieldName)[0]
+    return [fieldTypeLookup[field.type],field.length]
+
+# Generate a unique name for new tables and avoid info tables.
+def NameTable(inputName, inputPath):
+    #pathDescription = arcpy.Describe(inputPath)
+    #if pathDescription.workspaceType == u'FileSystem':
+    #    inputName += '.dbf'
+    uniqueFullName = arcpy.CreateUniqueName(inputName, inputPath)
+    uniqueTableName = os.path.splitext(os.path.basename(uniqueFullName))[0]
+    return uniqueFullName, uniqueTableName
+  
+####END helper functions, begin toolbox code  
+    
 class Toolbox(object):
     def __init__(self):
         """Define the toolbox (the name of the toolbox is the name of the
@@ -585,7 +664,7 @@ class DasymetricCalculations(object):
         param_7.parameterType = 'Required'
         param_7.direction = 'Input'
         param_7.datatype = u'Field'
-        param_7.value = u'Count'
+        param_7.value = u'COUNT'
         param_7.parameterDependencies = [param_4.name]
 
         # Minimum_Sample
@@ -644,69 +723,7 @@ class DasymetricCalculations(object):
         validator = getattr(self, 'ToolValidator', None)
         if validator:
              return validator(parameters).updateMessages()
-    def execute(self, parameters, messages):
-        # Strips extension from filename
-        def GetFileName(datasetName):
-            return os.path.splitext(datasetName)[0] 
-        
-        # Pulls all the values from a field in a table into a python list object
-        def GetValues(table, field, float="n"):
-            if table and table != "#":
-                fieldObj = arcpy.ListFields(table, field)[0]
-                #Modern List Comprehension using data access module to do the same thing.
-                inList = [row[0] for row in arcpy.da.SearchCursor(table, field)]
-                if fieldObj.type != "String" and float != "y":  #Convert numeric class values to strings
-                    inList = [str(int(val)) for val in inList]
-            return inList
-        
-         # Because NULL values can be problematic in queries and field calculations, replaces all NULLS with zeroess.   
-        def RemoveNulls(table,field): 
-            whereClause = arcpy.AddFieldDelimiters(table,field) + " IS NULL"
-            calculateStaticValue(table,field,"0",whereClause)                
-        
-        def calculateStaticValue(table,field,value,whereClause=''):
-            cursor = arcpy.UpdateCursor(table, whereClause)
-            if value: 
-                for row in cursor:
-                    row.setValue(field, value)
-                    cursor.updateRow(row)  
-            else: #Set to null.
-                for row in cursor:
-                    row.setNull(field)
-                    cursor.updateRow(row)
-        
-        # The working tables are frequently reused, so it's necessary to reset fields to zeroes
-        def ClearField(tableName,fieldName):
-            fields = arcpy.ListFields(tableName, fieldName)
-            if (len(fields) > 0):
-                field = fields[0]
-                if field.type == 'String':
-                    calculateStaticValue(tableName,fieldName,"''")
-                else:
-                    calculateStaticValue(tableName,fieldName,False)
-        
-        # Convert output from field property into expected input for field creation.
-        def FieldProps(tableName, fieldName):
-            fieldTypeLookup = {"Integer":"LONG","String":"TEXT","Single":"FLOAT","Double":"DOUBLE","SmallInteger":"SHORT","Date":"DATE"}
-            field = arcpy.ListFields(tableName, fieldName)[0]
-            return [fieldTypeLookup[field.type],field.length]
-        
-        # If two .dbf tables are joined, the joined fieldnames all have tablename. as prefix.
-        # If two tables of different formats are joined, the first table has tablename: as prefix, and the joined table has tablename. as prefix.
-        # If two info or FGDB tables are joined, there are no prefixes, and duplicate tablenames in the joined table have a _1 suffix.
-        # Solution - derive from the list of Fields:
-        def joinedFieldName(tableView,tableName,fieldName):
-            fieldList = [field.name for field in arcpy.ListFields(tableView)]
-            if ('.' in fieldList[0]) or (':' in fieldList[0]):
-              for field in fieldList:
-                  if ((field[-len(fieldName):] == fieldName) and (field[:len(tableName)].lower() == tableName.lower())):
-                      return field
-            else:
-              if (tableName.lower() in arcpy.Describe(tableView).name): 
-                return fieldName # If this field is in the base table, the name will not be changed
-              else:
-                return arcpy.ListFields(tableView,fieldName + "*")[-1].name # If this field is in the joined table, it should be the last match from this function (or first, if there's only 1).
-            
+    def execute(self, parameters, messages):    
         try:
             arcpy.env.overwriteOutput = True
             
@@ -723,18 +740,6 @@ class DasymetricCalculations(object):
             percent = parameters[9].valueAsText # Optional parameter - percent value for percent area method - default = 0.95
             presetTable = parameters[10].valueAsText # Optional parameter - Table with ancillary categorys and preset values from step 5
             presetField = parameters[11].valueAsText # Optional parameter - Field in preset table with preset values - field with class values assumed to be the same as ancCatName
-            # popWorkingTable = "D:\\dasy\\tim\\popworktbl.dbf"
-            # popCountField = "POP2000"
-            # popAreaField = "COUNT"
-            # outWorkTable = "D:\\dasy\\tim\\DasyWorkTbl.dbf"
-            # popIDField = "BLKRAST"
-            # ancCatName = "LC01R"
-            # dasyAreaField = "COUNT"
-            # sampleMin = "3"
-            # popAreaMin = 1
-            # percent = "0.95"
-            # presetTable = "#"
-            # presetField = "#"
             
         #Note for future development:  Anywhere in this script where "Value" is hardcoded as a field name
         #probably needs to be removed for compatibility with vectors as input.
@@ -804,8 +809,10 @@ class DasymetricCalculations(object):
                     cursor.updateRow(row)
             with arcpy.da.UpdateCursor(popWorkingTable, ["Value","POP_AREA"]) as cursor:
                 for row in cursor:
-                    row[1] = inhabCounter.get(row[0])
-                    cursor.updateRow(row)                     
+                    rowValue = inhabCounter.get(row[0])
+                    if rowValue: #DbaseTables can't handle nulls - this avoids population units that don't intersect the ancillary layer.
+                        row[1] = rowValue
+                        cursor.updateRow(row)                     
     
             # Make sure output working table has population counts
             arcpy.SelectLayerByAttribute_management(outWorkTableView, "CLEAR_SELECTION")
@@ -867,8 +874,7 @@ class DasymetricCalculations(object):
                 whereClause = whereClause + " AND " + arcpy.AddFieldDelimiters(popWorkingTable,"REP_CAT") + " <> ''"
             aPopWorkTableView = "aPopWorkTableView"
             arcpy.MakeTableView_management(popWorkingTable, aPopWorkTableView, whereClause)
-            ancDensTable = arcpy.CreateUniqueName("SamplingSummaryTable", outWorkspace)
-            ancDensTableName = os.path.split(ancDensTable)[1]
+            ancDensTable, ancDensTableName = NameTable("SamplingSummaryTable", outWorkspace)
             if arcpy.GetCount_management(aPopWorkTableView):
                 arcpy.Statistics_analysis(aPopWorkTableView, ancDensTable, popCountField + " SUM; " + popAreaField + " SUM; CELL_DENS MEAN; CELL_DENS MIN; CELL_DENS MAX; CELL_DENS STD; POP_AREA SUM; POP_DENS MEAN; POP_DENS MIN; POP_DENS MAX; POP_DENS STD;" , "REP_CAT")
                 arcpy.AddField_management(ancDensTable, "SAMPLDENS", "DOUBLE")
@@ -884,8 +890,6 @@ class DasymetricCalculations(object):
                 AddPrintMessage("Calculating first population estimate for sampled and preset classes...",0)
                 arcpy.AddJoin_management(outWorkTableView, ancCatName, ancDensTable, "REP_CAT", "KEEP_COMMON")
                 if presetTable and presetTable != "#":
-                    #whereClause = arcpy.AddFieldDelimiters(outWorkTableView,joinedFieldName(outWorkTableView,outWorkTableName,ancCatName)) + " NOT IN (" + ", ".join(inPresetCatList) + ")"
-                    # Field delimiters no longer necessary (even invalid) at 10.3.1?
                     whereClause = joinedFieldName(outWorkTableView,outWorkTableName,ancCatName) + " NOT IN (" + ", ".join(inPresetCatList) + ")"
                     arcpy.SelectLayerByAttribute_management(outWorkTableView, "NEW_SELECTION", whereClause)
                 else:
@@ -911,16 +915,20 @@ class DasymetricCalculations(object):
                 arcpy.RemoveJoin_management(outWorkTableView,presetTableName)
                 # Add these preset values to the ancDensTable for comparison purposes, altering the official CLASSDENS field, but not the SAMPLDENS field.
                 for inPresetCat,outPresetCat,presetVal in zip(inPresetCatList,outPresetCatList,presetValList):
-                    ancDensTableView = "AncDensTableView_" + str(inPresetCat)
+                    ancDensTableView = "AncDensTableView_" + inPresetCat
                     arcpy.MakeTableView_management(ancDensTable, ancDensTableView, arcpy.AddFieldDelimiters(ancDensTable,"REP_CAT") + " = " + inPresetCat)
                     if int(arcpy.GetCount_management(ancDensTableView).getOutput(0)) > 0:
                         arcpy.CalculateField_management(ancDensTableView, "CLASSDENS", presetVal, 'PYTHON')
                         arcpy.CalculateField_management(ancDensTableView, "METHOD", '"Preset"', 'PYTHON')
                     else:
-                        cursorFields = ["CLASSDENS","METHOD","REP_CAT"]
-                        cursor = arcpy.da.InsertCursor(ancDensTable,cursorFields)
-                        cursor.insertRow([presetVal,"Preset",outPresetCat])
-                        del cursor
+                        # arcpy.da.InsertCursor seems to have some issue with INFO Tables, switching back to standard InsertCursor 
+                        cursor = arcpy.InsertCursor(ancDensTable)
+                        row = cursor.newRow()
+                        row.CLASSDENS = presetVal
+                        row.METHOD = "Preset"
+                        row.REP_CAT = outPresetCat
+                        cursor.insertRow(row)
+                        del cursor, row
                 outPresetCatList, inPresetCatList = None, None
             RemoveNulls(outWorkTableView,"POP_EST")
                        
@@ -988,11 +996,15 @@ class DasymetricCalculations(object):
                                 cursor.updateRow(row)
 
                 # - Lastly, add these IAW values to the ancDensTable
-                cursorFields = ['CLASSDENS','METHOD','REP_CAT']
-                cursor = arcpy.da.InsertCursor(ancDensTable,cursorFields)
+                # arcpy.da.InsertCursor seems to have some issue with INFO Tables, switching back to standard InsertCursor 
+                cursor = arcpy.InsertCursor(ancDensTable)
                 for ancCat, classDens in classDensDict.items():
-                    cursor.insertRow([classDens,"IAW",ancCat])
-                del cursor, classDensDict
+                    row = cursor.newRow()
+                    row.CLASSDENS = classDens
+                    row.METHOD = "IAW"
+                    row.REP_CAT = ancCat
+                    cursor.insertRow(row)
+                del cursor, classDensDict, row
             # End of intelligent areal weighting
              
             # Perform final calculations to ensure pycnophylactic integrity
@@ -1022,7 +1034,7 @@ class DasymetricCalculations(object):
             
             # Lastly create an official output statistics table
             AddPrintMessage("Creating a final summary table",0)
-            finalSummaryTable = arcpy.CreateUniqueName("FinalSummaryTable", outWorkspace)
+            finalSummaryTable, finalSummaryTableName = NameTable("FinalSummaryTable", outWorkspace)
             arcpy.Statistics_analysis(outWorkTable, finalSummaryTable, "NEW_POP SUM; NEWDENSITY MEAN; NEWDENSITY MIN; NEWDENSITY MAX; NEWDENSITY STD", ancCatName)
            
         # Geoprocessing Errors will be caught here
@@ -1188,11 +1200,7 @@ class LegacyDasymetricCalculations(object):
         validator = getattr(self, 'ToolValidator', None)
         if validator:
              return validator(parameters).updateMessages()
-    def execute(self, parameters, messages):
-        # Strips extension from filename
-        def GetFileName(datasetName):
-            return os.path.splitext(datasetName)[0] 
-        
+    def execute(self, parameters, messages):   
         # Checks for existing files in the directory with the same name 
         # and adds an integer to the end of non-unique filenames 
         def NameCheck(name,tableSuffix):
@@ -1205,60 +1213,7 @@ class LegacyDasymetricCalculations(object):
                     okName = name
                 j = j + 1
             return okName + tableSuffix, okName
-        
-        # Pulls all the values from a field in a table into a python list object
-        def GetValues(table, field, float="n"):
-            inList = []
-            if table and table != "#":
-                fieldObj = arcpy.ListFields(table, field)[0]
-                rows = arcpy.SearchCursor(table)
-                row = rows.next()
-                while row:
-                    inList.append(row.getValue(field))
-                    row = rows.next()
-                if fieldObj.type != "String" and float != "y":  #Convert numeric class values to strings
-                    inList = [str(int(val)) for val in inList]
-                rows, row, fieldList, fieldObj = None, None, None, None
-            return inList
-        
-         # Because NULL values can be problematic in queries and field calculations, replaces all NULLS with zeroess.   
-        def RemoveNulls(tableView,field): 
-            arcpy.SelectLayerByAttribute_management(tableView, "NEW_SELECTION", arcpy.AddFieldDelimiters(tableView,field) + " IS NULL")
-            if arcpy.GetCount_management(tableView):
-                arcpy.CalculateField_management(tableView, field, "0", 'PYTHON')
-        
-        # The working tables are frequently reused, so it's necessary to reset fields to zeroes
-        def ClearField(tableName,fieldName):
-            fields = arcpy.ListFields(tableName, fieldName)
-            if (len(fields) > 0):
-                field = fields[0]
-                if field.type == 'String':
-                    arcpy.CalculateField_management(tableName,fieldName, "''", 'PYTHON')
-                else:
-                    arcpy.CalculateField_management(tableName,fieldName, "None", 'PYTHON')
-        
-        # Convert output from field property into expected input for field creation.
-        def FieldProps(tableName, fieldName):
-            fieldTypeLookup = {"Integer":"LONG","String":"TEXT","Single":"FLOAT","Double":"DOUBLE","SmallInteger":"SHORT","Date":"DATE"}
-            field = arcpy.ListFields(tableName, fieldName)[0]
-            return [fieldTypeLookup[field.type],field.length]
-        
-        # If two .dbf tables are joined, the joined fieldnames all have tablename. as prefix.
-        # If two tables of different formats are joined, the first table has tablename: as prefix, and the joined table has tablename. as prefix.
-        # If two info or FGDB tables are joined, there are no prefixes, and duplicate tablenames in the joined table have a _1 suffix.
-        # Solution - derive from the list of Fields:
-        def joinedFieldName(tableView,tableName,fieldName):
-            fieldList = [field.name for field in arcpy.ListFields(tableView)]
-            if ('.' in fieldList[0]) or (':' in fieldList[0]):
-              for field in fieldList:
-                  if ((field[-len(fieldName):] == fieldName) and (field[:len(tableName)].lower() == tableName.lower())):
-                      return field
-            else:
-              if (tableName.lower() in arcpy.Describe(tableView).name): 
-                return fieldName # If this field is in the base table, the name will not be changed
-              else:
-                return arcpy.ListFields(tableView,fieldName + "*")[-1].name # If this field is in the joined table, it should be the last match from this function (or first, if there's only 1).
-            
+          
         try:
             arcpy.env.overwriteOutput = True
             

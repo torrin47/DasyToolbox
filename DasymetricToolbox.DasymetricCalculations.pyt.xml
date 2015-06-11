@@ -6,8 +6,8 @@
 		<ArcGISFormat>1.0</ArcGISFormat>
 		<ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle>
 		<SyncOnce>TRUE</SyncOnce>
-		<ModDate>20150604</ModDate>
-		<ModTime>155901</ModTime>
+		<ModDate>20150606</ModDate>
+		<ModTime>131317</ModTime>
 		<scaleRange>
 			<minScale>150000000</minScale>
 			<maxScale>5000</maxScale>

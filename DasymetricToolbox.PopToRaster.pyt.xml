@@ -5,8 +5,8 @@
 		<CreaDate>20090812</CreaDate>
 		<CreaTime>16444600</CreaTime>
 		<SyncOnce>TRUE</SyncOnce>
-		<ModDate>20150604</ModDate>
-		<ModTime>155857</ModTime>
+		<ModDate>20150605</ModDate>
+		<ModTime>103547</ModTime>
 		<ArcGISFormat>1.0</ArcGISFormat>
 		<ArcGISProfile>NAP</ArcGISProfile>
 	</Esri>
@@ -40,7 +40,7 @@
 				<dialogReference>
 					<para>Since the tool will always use the system-recognized ObjectID field for the output raster Values, this is for your reference only and is not used by the tool.  It can be helpful to have another key field (commonly census FIPS code) for joining the output raster to other tables.  </para>
 				</dialogReference>
-				<pythonReference>Since the tool will always use the system-recognized ObjectID field for the output raster Values, this is for your reference only and is not used by the tool.  It can be helpful to have another key field (commonly census FIPS code) for joining the outuput raster to other tables.</pythonReference>
+				<pythonReference>Since the tool will always use the system-recognized ObjectID field for the output raster Values, this is for your reference only and is not used by the tool.  It can be helpful to have another key field (commonly census FIPS code) for joining the output raster to other tables.</pythonReference>
 			</param>
 			<param name="Ancillary_Raster" displayname="Ancillary Raster" type="Required" direction="Input" expression="Ancillary_Raster" datatype="Raster Dataset">
 				<commandReference>
