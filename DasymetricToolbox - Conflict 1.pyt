@@ -128,7 +128,7 @@ class Toolbox(object):
         self.label = "Intelligent Dasymetric Mapping Toolbox"
         self.alias = "IDM"
         # List of tool classes associated with this toolbox
-        self.tools = [PopToRaster, CombinePopAnc, CreateAncillaryPresetTable, DasymetricCalculations, LegacyDasymetricCalculations, CreateFinalRaster, CombinedSteps123]
+        self.tools = [PopToRaster, CombinePopAnc, CreateAncillaryPresetTable, DasymetricCalculations, LegacyDasymetricCalculations, CreateFinalRaster, CombinedSteps123, CombinedSteps45]
 
 # Tool implementation code
 
@@ -1857,3 +1857,201 @@ class CombinedSteps123(object):
                     str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
             AddPrintMessage(pymsg, 2)
         
+        
+class CombinedSteps45(object):
+    def __init__(self):
+        self.label = u'Combined Steps 4-5 - Perform Dasymetric Calculations and Produce Density Raster'
+        self.canRunInBackground = False
+    def getParameterInfo(self):
+        # Population_Working_Table
+        param_1 = arcpy.Parameter()
+        param_1.name = u'Population_Working_Table'
+        param_1.displayName = u'Population Working Table'
+        param_1.parameterType = 'Required'
+        param_1.direction = 'Input'
+        param_1.datatype = u'Table'
+        
+        # Population_Count_Field
+        param_2 = arcpy.Parameter()
+        param_2.name = u'Population_Count_Field'
+        param_2.displayName = u'Population Count Field'
+        param_2.parameterType = 'Required'
+        param_2.direction = 'Input'
+        param_2.datatype = u'Field'
+        param_2.parameterDependencies = [param_1.name]
+
+        # Population_Area_Field
+        param_3 = arcpy.Parameter()
+        param_3.name = u'Population_Area_Field'
+        param_3.displayName = u'Population Area Field'
+        param_3.parameterType = 'Required'
+        param_3.direction = 'Input'
+        param_3.datatype = u'Field'
+        param_3.value = u'Count'
+        param_3.parameterDependencies = [param_1.name]
+
+        # Dasymetric_Working_Table
+        param_4 = arcpy.Parameter()
+        param_4.name = u'Dasymetric_Working_Table'
+        param_4.displayName = u'Dasymetric Working Table'
+        param_4.parameterType = 'Required'
+        param_4.direction = 'Input'
+        param_4.datatype = u'Table'
+
+        # Population_ID_Field
+        param_5 = arcpy.Parameter()
+        param_5.name = u'Population_ID_Field'
+        param_5.displayName = u'Population ID Field'
+        param_5.parameterType = 'Required'
+        param_5.direction = 'Input'
+        param_5.datatype = u'Field'
+        param_5.parameterDependencies = [param_4.name]
+
+        # Ancillary_Class_Field
+        param_6 = arcpy.Parameter()
+        param_6.name = u'Ancillary_Class_Field'
+        param_6.displayName = u'Ancillary Class Field'
+        param_6.parameterType = 'Required'
+        param_6.direction = 'Input'
+        param_6.datatype = u'Field'
+        param_6.parameterDependencies = [param_4.name]
+
+        # Combined_Area_Field
+        param_7 = arcpy.Parameter()
+        param_7.name = u'Combined_Area_Field'
+        param_7.displayName = u'Combined Area Field'
+        param_7.parameterType = 'Required'
+        param_7.direction = 'Input'
+        param_7.datatype = u'Field'
+        param_7.value = u'Count'
+        param_7.parameterDependencies = [param_4.name]
+
+        # Minimum_Sample
+        param_8 = arcpy.Parameter()
+        param_8.name = u'Minimum_Sample'
+        param_8.displayName = u'Minimum Sample'
+        param_8.parameterType = 'Required'
+        param_8.direction = 'Input'
+        param_8.datatype = u'Long'
+        param_8.value = u'3'
+
+        # Minimum_Sampling_Area
+        param_9 = arcpy.Parameter()
+        param_9.name = u'Minimum_Sampling_Area'
+        param_9.displayName = u'Minimum Sampling Area'
+        param_9.parameterType = 'Required'
+        param_9.direction = 'Input'
+        param_9.datatype = u'Long'
+        param_9.value = u'1'
+
+        # Percent
+        param_10 = arcpy.Parameter()
+        param_10.name = u'Percent'
+        param_10.displayName = u'Percent'
+        param_10.parameterType = 'Optional'
+        param_10.direction = 'Input'
+        param_10.datatype = u'Double'
+        param_10.value = u'0.95'
+
+        # Preset_Table
+        param_11 = arcpy.Parameter()
+        param_11.name = u'Preset_Table'
+        param_11.displayName = u'Preset Table'
+        param_11.parameterType = 'Optional'
+        param_11.direction = 'Input'
+        param_11.datatype = u'Table'
+
+        # Preset_Field
+        param_12 = arcpy.Parameter()
+        param_12.name = u'Preset_Field'
+        param_12.displayName = u'Preset Field'
+        param_12.parameterType = 'Optional'
+        param_12.direction = 'Input'
+        param_12.datatype = u'Field'
+        param_12.value = u'PRESETDENS'
+        param_12.parameterDependencies = [param_11.name]
+
+        # Dasymetric_Raster
+        param_13 = arcpy.Parameter()
+        param_13.name = u'Dasymetric_Raster'
+        param_13.displayName = u'Dasymetric Raster'
+        param_13.parameterType = 'Required'
+        param_13.direction = 'Input'
+        param_13.datatype = u'Raster Dataset'
+        
+        # Density_Raster
+        param_14 = arcpy.Parameter()
+        param_14.name = u'Density_Raster'
+        param_14.displayName = u'Density Raster'
+        param_14.parameterType = 'Required'
+        param_14.direction = 'Output'
+        param_14.datatype = u'Raster Dataset'
+
+        return [param_1, param_2, param_3, param_4, param_5, param_6, param_7, param_8, param_9, param_10, param_11, param_12, param_13, param_14]
+    def isLicensed(self):
+        """Allow the tool to execute, only if the Spatial Analyst extension 
+        is available."""
+        try:
+            if arcpy.CheckExtension("spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True  # tool can be executed
+    def updateParameters(self, parameters):
+        if parameters[0].value:
+            outPath = arcpy.Describe(parameters[0].value).path
+            fcSuffix, tblSuffix, rastSuffix = setSuffixes(outPath)
+            if not parameters[13].altered:
+                parameters[13].value = os.path.join(outPath, u"DensityRaster" + rastSuffix)
+        validator = getattr(self, 'ToolValidator', None)
+        if validator:
+             return validator(parameters).updateParameters()
+    def updateMessages(self, parameters):
+        validator = getattr(self, 'ToolValidator', None)
+        if validator:
+             return validator(parameters).updateMessages()
+    def execute(self, parameters, messages):            
+        try:
+            # Script arguments...
+            popWorkingTable = parameters[0] # the name of the population working table from step 2
+            popCountField = parameters[1] # the field containing population counts
+            popAreaField = parameters[2] # the area or cell count field in the population working table
+            outWorkTable = parameters[3] # Dasymetric output working table from step 2    
+            popIDField = parameters[4] # the field in the output working table that uniquely identifies population source units.
+            ancCatName = parameters[5] # the name of the field in the output working layer containing category information
+            dasyAreaField = parameters[6] # the name of the field in the output working layer containing area (or raster cell count)
+            sampleMin = parameters[7] # Minimum number of source units to ensure a representative sample - default = 3
+            popAreaMin = parameters[8] # Minimum number of raster cells required for a source unit to be considered representative - default = 1
+            percent = parameters[9] # Optional parameter - percent value for percent area method - default = 0.95
+            presetTable = parameters[10] # Optional parameter - Table with ancillary categorys and preset values from step 5
+            presetField = parameters[11] # Optional parameter - Field in preset table with preset values - field with class values assumed to be the same as ancCatName
+            dasyRaster = parameters[12] # The name and full path of the output dasymetric raster that will be created. This raster will have a single value for each unique combination of population units and ancillary classes. When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for a GRID file format.
+            outputRaster = parameters[13] # Please enter the desired output raster with the full path. When you're not saving to a geodatabase, specify .tif for a TIFF file format, .img for an ERDAS IMAGINE file format, or no extension for an ESRI GRID file format.
+
+            AddPrintMessage("Executing Step 4")
+            step4 = DasymetricCalculations()
+            step4.execute([popWorkingTable,popCountField,popAreaField,outWorkTable,popIDField,ancCatName,dasyAreaField,sampleMin,popAreaMin,percent,presetTable,presetField,outputRaster],messages)
+            
+            AddPrintMessage("Executing Step 5")
+            step5 = CreateFinalRaster()
+            step5.execute([dasyRaster,outWorkTable,outputRaster],messages)            
+
+            # Geoprocessing Errors will be caught here
+        except Exception as e:
+            print (e.message)
+            messages.AddErrorMessage(e.message)
+        
+        # other errors caught here
+        except:
+            # Cycle through Geoprocessing tool specific errors
+            for msg in range(0, arcpy.GetMessageCount()):
+                if arcpy.GetSeverity(msg) == 2:
+                    arcpy.AddReturnMessage(msg)
+                    
+            # Return Python specific errors
+            tb = sys.exc_info()[2]
+            tbinfo = traceback.format_tb(tb)[0]
+            pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+                    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            AddPrintMessage(pymsg, 2)
+                
