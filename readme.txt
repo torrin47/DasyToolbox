@@ -6,4 +6,4 @@ To add this toolbox to ArcToolbox, right click on the ArcToolbox folder at the t
 
 For more information on the individual scripts and processes, please reference the help for each individual tool or the html help docs in this folder.  
 
-Updated for ArcGIS 10 and ArcPy, 1/24/2010
+Updated for ArcGIS 10.3, ArcPy and arcpy.da, Summer 20105.
